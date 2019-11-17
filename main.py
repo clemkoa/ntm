@@ -10,10 +10,12 @@ class NTM(nn.Module):
         self.memory = torch.ones([10, 20], dtype=torch.float)
         self.read_head = ReadHead(self.memory)
         self.write_head = WriteHead(self.memory)
+        self.fc = nn.Linear(6 + 20, 6)
 
     def forward(self, x):
         read = self.read_head(self.controller(x))
-        return self.controller(x)
+        fc_input = torch.cat((x, read), 1)
+        return F.sigmoid(self.fc(fc_input))
 
 class Controller(nn.Module):
     def __init__(self):

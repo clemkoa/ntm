@@ -6,6 +6,14 @@ import torch.nn.functional as F
 class NTM(nn.Module):
     def __init__(self):
         super(NTM, self).__init__()
+        self.controller = Controller()
+
+    def forward(self, x):
+        return self.controller(x)
+
+class Controller(nn.Module):
+    def __init__(self):
+        super(Controller, self).__init__()
         self.layer = nn.Linear(6, 6)
 
     def forward(self, x):

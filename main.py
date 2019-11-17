@@ -7,11 +7,12 @@ class NTM(nn.Module):
     def __init__(self):
         super(NTM, self).__init__()
         self.controller = Controller()
-        self.read_head = ReadHead()
-        self.write_head = WriteHead()
-        self.memory = torch.zeros([10, 20], dtype=torch.int32)
+        self.memory = torch.ones([10, 20], dtype=torch.float)
+        self.read_head = ReadHead(self.memory)
+        self.write_head = WriteHead(self.memory)
 
     def forward(self, x):
+        read = self.read_head(self.controller(x))
         return self.controller(x)
 
 class Controller(nn.Module):
@@ -23,15 +24,18 @@ class Controller(nn.Module):
         return self.layer(x)
 
 class ReadHead(nn.Module):
-    def __init__(self):
+    def __init__(self, memory):
         super(ReadHead, self).__init__()
+        self.weights = nn.Linear(6, 10)
+        self.memory = memory
 
     def forward(self, x):
-        return x
+        return torch.matmul(self.weights(x), self.memory)
 
 class WriteHead(nn.Module):
-    def __init__(self):
+    def __init__(self, memory):
         super(WriteHead, self).__init__()
+        self.memory = memory
 
     def forward(self, x):
         return x

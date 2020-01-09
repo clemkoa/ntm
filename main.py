@@ -13,8 +13,9 @@ class NTM(nn.Module):
         self.fc = nn.Linear(6 + 20, 6)
 
     def forward(self, x):
-        read = self.read_head(self.controller(x))
-        fc_input = torch.cat((x, read), 1)
+        controller_output = self.controller(x)
+        read = self.read_head(controller_output)
+        fc_input = torch.cat((controller_output, read), 1)
         return F.sigmoid(self.fc(fc_input))
 
 class Controller(nn.Module):
@@ -37,6 +38,7 @@ class ReadHead(nn.Module):
 class WriteHead(nn.Module):
     def __init__(self, memory):
         super(WriteHead, self).__init__()
+        self.weights = nn.Linear(6, 10)
         self.memory = memory
 
     def forward(self, x):

@@ -36,7 +36,7 @@ class ReadHead(nn.Module):
         self.memory = memory
 
     def forward(self, x, previous_state):
-        return torch.matmul(self.weights(x), self.memory), previous_state
+        return torch.matmul(previous_state, self.memory), previous_state
 
 class WriteHead(nn.Module):
     def __init__(self, memory):
@@ -50,8 +50,8 @@ class WriteHead(nn.Module):
 input = torch.tensor([[0.0, 1.0, 0, 1, 1, 0]])
 target = torch.tensor([[0.0, 1.0, 0, 1, 1, 0]])
 
-initial_read_head_weights = torch.ones((6, 1))
-initial_write_head_weights = torch.ones((6, 1))
+initial_read_head_weights = torch.ones((1, 10))
+initial_write_head_weights = torch.ones((1, 10))
 state = (initial_read_head_weights, initial_write_head_weights)
 
 model = NTM()

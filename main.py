@@ -104,31 +104,46 @@ class Memory:
         return self.memory
 
     def write(self, w, e, a):
-        self.memory = self.memory * (1 - torch.matmul(w, e.view(*self.memory.shape)))
+        self.memory = self.memory * (1 - torch.matmul(w, e.view(self.memory.shape)))
         self.memory = self.memory + torch.t(w) * a
         return self.memory
 
     def size(self):
         return self.memory.shape
 
-vector_length = 8
+def get_delimiter_vector(vector_length):
+    return - torch.ones(1, 1, vector_length)
+
+def get_training_sequence(input_length, vector_length):
+    output = []
+    for i in range(input_length):
+        output.append(torch.bernoulli(torch.Tensor(1, vector_length).uniform_(0, 1)))
+    output = torch.cat(output)
+    output = torch.unsqueeze(output, 1)
+    input = torch.cat([output, get_delimiter_vector(vector_length)])
+    return input, output
+
+
+vector_length = 6
 memory_size = (10, 20)
 hidden_layer_size = 6
-
-input = torch.tensor([[0.0, 1.0, 0, 1, 1, 0]])
-target = torch.tensor([[0.0, 1.0, 0, 1, 1, 0]])
-
-initial_read_head_weights = torch.ones((1, 10))
-initial_write_head_weights = torch.ones((1, 10))
-state = (initial_read_head_weights, initial_write_head_weights)
+input_length = 2
 
 model = NTM(hidden_layer_size, memory_size)
 optimizer = optim.Adam(model.parameters(), lr = 0.001)
 
-for i in range(1000):
+for i in range(100000):
+    initial_read_head_weights = torch.ones((1, 10))
+    initial_write_head_weights = torch.ones((1, 10))
+    state = (initial_read_head_weights, initial_write_head_weights)
+    input, target = get_training_sequence(input_length, vector_length)
     optimizer.zero_grad()
-    output, state = model(input, state)
-    loss = F.mse_loss(output, target)
+    for vector in input:
+        output, state = model(vector, state)
+    loss = 0.0
+    for vector in target:
+        output, state = model(get_delimiter_vector(vector_length)[0], state)
+        loss += F.mse_loss(output, vector)
     print(loss)
     loss.backward()
     optimizer.step()

@@ -4,13 +4,13 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 class NTM(nn.Module):
-    def __init__(self):
+    def __init__(self, hidden_size, memory_size):
         super(NTM, self).__init__()
-        self.controller = Controller()
-        self.memory = Memory()
-        self.read_head = ReadHead(self.memory)
-        self.write_head = WriteHead(self.memory)
-        self.fc = nn.Linear(6 + 20, 6)
+        self.controller = Controller(hidden_size)
+        self.memory = Memory(memory_size)
+        self.read_head = ReadHead(self.memory, hidden_size)
+        self.write_head = WriteHead(self.memory, hidden_size)
+        self.fc = nn.Linear(hidden_size + memory_size[1], hidden_size)
 
     def forward(self, x, previous_state):
         previous_read_head_state, previous_write_head_state = previous_state
@@ -25,23 +25,24 @@ class NTM(nn.Module):
         return F.sigmoid(self.fc(fc_input)), state
 
 class Controller(nn.Module):
-    def __init__(self):
+    def __init__(self, hidden_size):
         super(Controller, self).__init__()
-        self.layer = nn.Linear(6, 6)
+        self.layer = nn.Linear(hidden_size, hidden_size)
 
     def forward(self, x):
         return self.layer(x)
 
 class ReadHead(nn.Module):
-    def __init__(self, memory):
+    def __init__(self, memory, hidden_size):
         super(ReadHead, self).__init__()
-        # (k : vector, beta: scalar, g: scalar, s: vector, gamma: scalar)
-        self.k_layer = nn.Linear(6, 20)
-        self.beta_layer = nn.Linear(6, 1)
-        self.g_layer = nn.Linear(6, 1)
-        self.s_layer = nn.Linear(6, 20)
-        self.gamma_layer = nn.Linear(6, 1)
         self.memory = memory
+        memory_vector_length = memory.size()[1]
+        # (k : vector, beta: scalar, g: scalar, s: vector, gamma: scalar)
+        self.k_layer = nn.Linear(hidden_size, memory_vector_length)
+        self.beta_layer = nn.Linear(hidden_size, 1)
+        self.g_layer = nn.Linear(hidden_size, 1)
+        self.s_layer = nn.Linear(hidden_size, memory_vector_length)
+        self.gamma_layer = nn.Linear(hidden_size, 1)
 
     def forward(self, x, previous_state):
         # temporary
@@ -60,17 +61,18 @@ class ReadHead(nn.Module):
         return torch.matmul(state, memory), state.detach()
 
 class WriteHead(nn.Module):
-    def __init__(self, memory):
+    def __init__(self, memory, hidden_size):
         super(WriteHead, self).__init__()
-        # (k : vector, beta: scalar, g: scalar, s: vector, gamma: scalar)
-        self.k_layer = nn.Linear(6, 20)
-        self.beta_layer = nn.Linear(6, 1)
-        self.g_layer = nn.Linear(6, 1)
-        self.s_layer = nn.Linear(6, 20)
-        self.gamma_layer = nn.Linear(6, 1)
-        self.e_layer = nn.Linear(6, 20 * 10)
-        self.a_layer = nn.Linear(6, 20)
         self.memory = memory
+        memory_length, memory_vector_length = memory.size()
+        # (k : vector, beta: scalar, g: scalar, s: vector, gamma: scalar)
+        self.k_layer = nn.Linear(hidden_size, memory_vector_length)
+        self.beta_layer = nn.Linear(hidden_size, 1)
+        self.g_layer = nn.Linear(hidden_size, 1)
+        self.s_layer = nn.Linear(hidden_size, memory_vector_length)
+        self.gamma_layer = nn.Linear(hidden_size, 1)
+        self.e_layer = nn.Linear(hidden_size, memory_vector_length * memory_length)
+        self.a_layer = nn.Linear(hidden_size, memory_vector_length)
 
     def forward(self, x, previous_state):
         # temporary
@@ -95,15 +97,23 @@ class WriteHead(nn.Module):
         return read, state.detach()
 
 class Memory:
-    memory = torch.ones([10, 20], dtype=torch.float)
+    def __init__(self, memory_size):
+        self.memory = torch.ones(memory_size, dtype=torch.float)
 
     def read(self):
         return self.memory
 
     def write(self, w, e, a):
-        self.memory = self.memory * (1 - torch.matmul(w, e.view(10, 20)))
+        self.memory = self.memory * (1 - torch.matmul(w, e.view(*self.memory.shape)))
         self.memory = self.memory + torch.t(w) * a
         return self.memory
+
+    def size(self):
+        return self.memory.shape
+
+vector_length = 8
+memory_size = (10, 20)
+hidden_layer_size = 6
 
 input = torch.tensor([[0.0, 1.0, 0, 1, 1, 0]])
 target = torch.tensor([[0.0, 1.0, 0, 1, 1, 0]])
@@ -112,7 +122,7 @@ initial_read_head_weights = torch.ones((1, 10))
 initial_write_head_weights = torch.ones((1, 10))
 state = (initial_read_head_weights, initial_write_head_weights)
 
-model = NTM()
+model = NTM(hidden_layer_size, memory_size)
 optimizer = optim.Adam(model.parameters(), lr = 0.001)
 
 for i in range(1000):

@@ -22,7 +22,7 @@ class NTM(nn.Module):
         write_head_output, write_head_state = self.write_head(controller_output, previous_read_head_state)
         fc_input = torch.cat((controller_output, read_head_output), 1)
         state = (read_head_state, write_head_state)
-        return F.sigmoid(self.fc(fc_input)), state
+        return self.fc(fc_input), state
 
 class Controller(nn.Module):
     def __init__(self, hidden_size):
@@ -41,7 +41,7 @@ class ReadHead(nn.Module):
         self.k_layer = nn.Linear(hidden_size, memory_vector_length)
         self.beta_layer = nn.Linear(hidden_size, 1)
         self.g_layer = nn.Linear(hidden_size, 1)
-        self.s_layer = nn.Linear(hidden_size, memory_vector_length)
+        self.s_layer = nn.Linear(hidden_size, 3)
         self.gamma_layer = nn.Linear(hidden_size, 1)
 
     def forward(self, x, previous_state):
@@ -49,16 +49,16 @@ class ReadHead(nn.Module):
         k = self.k_layer(x)
         beta = F.softplus(self.beta_layer(x))
         g = F.sigmoid(self.g_layer(x))
-        s = self.s_layer(x)
-        gamma = self.gamma_layer(x)
-
+        s = F.softmax(self.s_layer(x))
+        gamma = 1 + F.softplus(self.gamma_layer(x))
         # Focusing by content
         memory = self.memory.read().detach()
         w_c = F.softmax(beta * F.cosine_similarity(memory, k, dim=-1), dim=1)
         # Focusing by location
-        # TODO
-        state = g * w_c + (1 - g) * previous_state
-        return torch.matmul(state, memory), state.detach()
+        w_g = g * w_c + (1 - g) * previous_state
+        w = w_g ** gamma
+        w = torch.div(w, torch.sum(w, dim=1).view(-1, 1) + 1e-16)
+        return torch.matmul(w, memory), w.detach()
 
 class WriteHead(nn.Module):
     def __init__(self, memory, hidden_size):
@@ -79,8 +79,8 @@ class WriteHead(nn.Module):
         k = self.k_layer(x)
         beta = F.softplus(self.beta_layer(x))
         g = F.sigmoid(self.g_layer(x))
-        s = self.s_layer(x)
-        gamma = self.gamma_layer(x)
+        s = F.softmax(self.s_layer(x))
+        gamma = 1 + F.softplus(self.gamma_layer(x))
         e = F.sigmoid(self.e_layer(x))
         a = self.a_layer(x)
 
@@ -88,13 +88,14 @@ class WriteHead(nn.Module):
         memory = self.memory.read().detach()
         w_c = F.softmax(beta * F.cosine_similarity(memory, k, dim=-1), dim=1)
         # Focusing by location
-        # TODO
-        state = g * w_c + (1 - g) * previous_state
-        read = torch.matmul(state, memory)
+        w_g = g * w_c + (1 - g) * previous_state
+        w = w_g ** gamma
+        w = torch.div(w, torch.sum(w, dim=1).view(-1, 1) + 1e-16)
+        read = torch.matmul(w, memory)
 
-        # write to memory (state, memory, e , a)
-        self.memory.write(state, e, a)
-        return read, state.detach()
+        # write to memory (w, memory, e , a)
+        self.memory.write(w, e, a)
+        return read, w.detach()
 
 class Memory:
     def __init__(self, memory_size):
@@ -132,6 +133,9 @@ input_length = 2
 model = NTM(hidden_layer_size, memory_size)
 optimizer = optim.Adam(model.parameters(), lr = 0.001)
 
+feedback_frequence = 100
+total_loss = []
+
 for i in range(100000):
     initial_read_head_weights = torch.ones((1, 10))
     initial_write_head_weights = torch.ones((1, 10))
@@ -144,6 +148,9 @@ for i in range(100000):
     for vector in target:
         output, state = model(get_delimiter_vector(vector_length)[0], state)
         loss += F.mse_loss(output, vector)
-    print(loss)
     loss.backward()
+    total_loss.append(loss.item())
     optimizer.step()
+    if i % feedback_frequence == 0:
+        print('loss', sum(total_loss))
+        total_loss = []

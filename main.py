@@ -131,16 +131,22 @@ hidden_layer_size = 6
 input_length = 2
 
 model = NTM(hidden_layer_size, memory_size)
-optimizer = optim.Adam(model.parameters(), lr = 0.001)
+optimizer = optim.Adam(model.parameters(), lr = 0.0003)
 
 feedback_frequence = 100
 total_loss = []
 
+model_path = 'models/copy.pt'
+
+
+checkpoint = torch.load(model_path)
+model.load_state_dict(checkpoint)
+
 for i in range(100000):
+    input, target = get_training_sequence(input_length, vector_length)
     initial_read_head_weights = torch.ones((1, 10))
     initial_write_head_weights = torch.ones((1, 10))
     state = (initial_read_head_weights, initial_write_head_weights)
-    input, target = get_training_sequence(input_length, vector_length)
     optimizer.zero_grad()
     for vector in input:
         output, state = model(vector, state)
@@ -152,5 +158,7 @@ for i in range(100000):
     total_loss.append(loss.item())
     optimizer.step()
     if i % feedback_frequence == 0:
-        print('loss', sum(total_loss))
+        print(f'loss at step {i}', sum(total_loss))
         total_loss = []
+
+torch.save(model.state_dict(), model_path)

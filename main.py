@@ -3,6 +3,8 @@ from torch import nn
 import torch.optim as optim
 import torch.nn.functional as F
 
+from utils import circular_convolution
+
 class NTM(nn.Module):
     def __init__(self, hidden_size, memory_size):
         super(NTM, self).__init__()
@@ -36,12 +38,12 @@ class ReadHead(nn.Module):
     def __init__(self, memory, hidden_size):
         super(ReadHead, self).__init__()
         self.memory = memory
-        memory_vector_length = memory.size()[1]
+        memory_length, memory_vector_length = memory.size()
         # (k : vector, beta: scalar, g: scalar, s: vector, gamma: scalar)
         self.k_layer = nn.Linear(hidden_size, memory_vector_length)
         self.beta_layer = nn.Linear(hidden_size, 1)
         self.g_layer = nn.Linear(hidden_size, 1)
-        self.s_layer = nn.Linear(hidden_size, 3)
+        self.s_layer = nn.Linear(hidden_size, memory_length)
         self.gamma_layer = nn.Linear(hidden_size, 1)
 
     def forward(self, x, previous_state):
@@ -56,6 +58,7 @@ class ReadHead(nn.Module):
         w_c = F.softmax(beta * F.cosine_similarity(memory, k, dim=-1), dim=1)
         # Focusing by location
         w_g = g * w_c + (1 - g) * previous_state
+        w_t = circular_convolution(w_g, s)
         w = w_g ** gamma
         w = torch.div(w, torch.sum(w, dim=1).view(-1, 1) + 1e-16)
         return torch.matmul(w, memory), w.detach()
@@ -69,7 +72,7 @@ class WriteHead(nn.Module):
         self.k_layer = nn.Linear(hidden_size, memory_vector_length)
         self.beta_layer = nn.Linear(hidden_size, 1)
         self.g_layer = nn.Linear(hidden_size, 1)
-        self.s_layer = nn.Linear(hidden_size, memory_vector_length)
+        self.s_layer = nn.Linear(hidden_size, memory_length)
         self.gamma_layer = nn.Linear(hidden_size, 1)
         self.e_layer = nn.Linear(hidden_size, memory_vector_length * memory_length)
         self.a_layer = nn.Linear(hidden_size, memory_vector_length)
@@ -89,6 +92,7 @@ class WriteHead(nn.Module):
         w_c = F.softmax(beta * F.cosine_similarity(memory, k, dim=-1), dim=1)
         # Focusing by location
         w_g = g * w_c + (1 - g) * previous_state
+        w_t = circular_convolution(w_g, s)
         w = w_g ** gamma
         w = torch.div(w, torch.sum(w, dim=1).view(-1, 1) + 1e-16)
         read = torch.matmul(w, memory)
@@ -131,7 +135,7 @@ hidden_layer_size = 6
 input_length = 2
 
 model = NTM(hidden_layer_size, memory_size)
-optimizer = optim.Adam(model.parameters(), lr = 0.0003)
+optimizer = optim.Adam(model.parameters(), lr = 0.003)
 
 feedback_frequence = 100
 total_loss = []
@@ -144,8 +148,8 @@ model.load_state_dict(checkpoint)
 
 for i in range(100000):
     input, target = get_training_sequence(input_length, vector_length)
-    initial_read_head_weights = torch.ones((1, 10))
-    initial_write_head_weights = torch.ones((1, 10))
+    initial_read_head_weights = torch.ones((1, 10)) / 10
+    initial_write_head_weights = torch.ones((1, 10)) / 10
     state = (initial_read_head_weights, initial_write_head_weights)
     optimizer.zero_grad()
     for vector in input:

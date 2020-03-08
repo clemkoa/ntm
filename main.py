@@ -15,24 +15,25 @@ class NTM(nn.Module):
         self.fc = nn.Linear(hidden_size + memory_size[1], hidden_size)
 
     def forward(self, x, previous_state):
-        previous_read_head_state, previous_write_head_state = previous_state
-        controller_output = self.controller(x)
+        previous_read_head_state, previous_write_head_state, previous_controller_state = previous_state
+        controller_output, controller_state = self.controller(x, previous_controller_state)
         # Read
         read_head_output, read_head_state = self.read_head(controller_output, previous_read_head_state)
 
         # Write
         write_head_output, write_head_state = self.write_head(controller_output, previous_read_head_state)
         fc_input = torch.cat((controller_output, read_head_output), 1)
-        state = (read_head_state, write_head_state)
+        state = (read_head_state, write_head_state, controller_state)
         return self.fc(fc_input), state
 
 class Controller(nn.Module):
     def __init__(self, hidden_size):
         super(Controller, self).__init__()
-        self.layer = nn.Linear(hidden_size, hidden_size)
+        self.layer = nn.LSTM(hidden_size, hidden_size)
 
-    def forward(self, x):
-        return self.layer(x)
+    def forward(self, x, state):
+        output, state = self.layer(x.view(1, 1, -1), state)
+        return output.view(1, -1), state
 
 class ReadHead(nn.Module):
     def __init__(self, memory, hidden_size):
@@ -119,9 +120,9 @@ class Memory:
 def get_delimiter_vector(vector_length):
     return - torch.ones(1, 1, vector_length)
 
-def get_training_sequence(input_length, vector_length):
+def get_training_sequence(sequence_length, vector_length):
     output = []
-    for i in range(input_length):
+    for i in range(sequence_length):
         output.append(torch.bernoulli(torch.Tensor(1, vector_length).uniform_(0, 1)))
     output = torch.cat(output)
     output = torch.unsqueeze(output, 1)
@@ -132,10 +133,10 @@ def get_training_sequence(input_length, vector_length):
 vector_length = 6
 memory_size = (10, 20)
 hidden_layer_size = 6
-input_length = 2
+sequence_length = 2
 
 model = NTM(hidden_layer_size, memory_size)
-optimizer = optim.Adam(model.parameters(), lr = 0.003)
+optimizer = optim.Adam(model.parameters(), lr = 0.001)
 
 feedback_frequence = 100
 total_loss = []
@@ -147,10 +148,11 @@ checkpoint = torch.load(model_path)
 model.load_state_dict(checkpoint)
 
 for i in range(100000):
-    input, target = get_training_sequence(input_length, vector_length)
+    input, target = get_training_sequence(sequence_length, vector_length)
     initial_read_head_weights = torch.ones((1, 10)) / 10
     initial_write_head_weights = torch.ones((1, 10)) / 10
-    state = (initial_read_head_weights, initial_write_head_weights)
+    initial_controller_weights = (torch.ones((1, 1, 6)) / 6, torch.ones((1, 1, 6)) / 6)
+    state = (initial_read_head_weights, initial_write_head_weights, initial_controller_weights)
     optimizer.zero_grad()
     for vector in input:
         output, state = model(vector, state)
@@ -162,7 +164,7 @@ for i in range(100000):
     total_loss.append(loss.item())
     optimizer.step()
     if i % feedback_frequence == 0:
-        print(f'loss at step {i}', sum(total_loss))
+        print(f'loss at step {i}', sum(total_loss) / len(total_loss))
         total_loss = []
 
 torch.save(model.state_dict(), model_path)

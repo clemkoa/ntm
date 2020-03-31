@@ -5,6 +5,7 @@ import torch.nn.functional as F
 
 from utils import circular_convolution
 
+
 class NTM(nn.Module):
     def __init__(self, hidden_size, memory_size):
         super(NTM, self).__init__()
@@ -26,6 +27,7 @@ class NTM(nn.Module):
         state = (read_head_state, write_head_state, controller_state)
         return self.fc(fc_input), state
 
+
 class Controller(nn.Module):
     def __init__(self, hidden_size):
         super(Controller, self).__init__()
@@ -34,6 +36,7 @@ class Controller(nn.Module):
     def forward(self, x, state):
         output, state = self.layer(x.view(1, 1, -1), state)
         return output.view(1, -1), state
+
 
 class ReadHead(nn.Module):
     def __init__(self, memory, hidden_size):
@@ -60,9 +63,10 @@ class ReadHead(nn.Module):
         # Focusing by location
         w_g = g * w_c + (1 - g) * previous_state
         w_t = circular_convolution(w_g, s)
-        w = w_g ** gamma
+        w = w_t ** gamma
         w = torch.div(w, torch.sum(w, dim=1).view(-1, 1) + 1e-16)
         return torch.matmul(w, memory), w.detach()
+
 
 class WriteHead(nn.Module):
     def __init__(self, memory, hidden_size):
@@ -94,13 +98,14 @@ class WriteHead(nn.Module):
         # Focusing by location
         w_g = g * w_c + (1 - g) * previous_state
         w_t = circular_convolution(w_g, s)
-        w = w_g ** gamma
+        w = w_t ** gamma
         w = torch.div(w, torch.sum(w, dim=1).view(-1, 1) + 1e-16)
         read = torch.matmul(w, memory)
 
         # write to memory (w, memory, e , a)
         self.memory.write(w, e, a)
         return read, w.detach()
+
 
 class Memory:
     def __init__(self, memory_size):
@@ -117,8 +122,10 @@ class Memory:
     def size(self):
         return self.memory.shape
 
+
 def get_delimiter_vector(vector_length):
     return - torch.ones(1, 1, vector_length)
+
 
 def get_training_sequence(sequence_length, vector_length):
     output = []
@@ -136,7 +143,7 @@ hidden_layer_size = 6
 sequence_length = 2
 
 model = NTM(hidden_layer_size, memory_size)
-optimizer = optim.Adam(model.parameters(), lr = 0.001)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 feedback_frequence = 100
 total_loss = []

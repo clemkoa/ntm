@@ -103,7 +103,7 @@ class WriteHead(nn.Module):
         read = torch.matmul(w, memory)
 
         # write to memory (w, memory, e , a)
-        self.memory.write(w, e, a)
+        self.memory.write(w.detach(), e.detach(), a.detach())
         return read, w.detach()
 
 
@@ -154,11 +154,11 @@ model_path = 'models/copy.pt'
 checkpoint = torch.load(model_path)
 model.load_state_dict(checkpoint)
 
+initial_read_head_weights = torch.ones((1, 10)) / 10
+initial_write_head_weights = torch.ones((1, 10)) / 10
+initial_controller_weights = (torch.ones((1, 1, 6)) / 6, torch.ones((1, 1, 6)) / 6)
 for i in range(100000):
     input, target = get_training_sequence(sequence_length, vector_length)
-    initial_read_head_weights = torch.ones((1, 10)) / 10
-    initial_write_head_weights = torch.ones((1, 10)) / 10
-    initial_controller_weights = (torch.ones((1, 1, 6)) / 6, torch.ones((1, 1, 6)) / 6)
     state = (initial_read_head_weights, initial_write_head_weights, initial_controller_weights)
     optimizer.zero_grad()
     for vector in input:

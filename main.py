@@ -7,13 +7,13 @@ from utils import circular_convolution
 
 
 class NTM(nn.Module):
-    def __init__(self, hidden_size, memory_size):
+    def __init__(self, vector_length, hidden_size, memory_size):
         super(NTM, self).__init__()
-        self.controller = Controller(hidden_size)
+        self.controller = Controller(vector_length, hidden_size)
         self.memory = Memory(memory_size)
         self.read_head = ReadHead(self.memory, hidden_size)
         self.write_head = WriteHead(self.memory, hidden_size)
-        self.fc = nn.Linear(hidden_size + memory_size[1], hidden_size)
+        self.fc = nn.Linear(hidden_size + memory_size[1], vector_length)
 
     def forward(self, x, previous_state):
         previous_read_head_state, previous_write_head_state, previous_controller_state = previous_state
@@ -29,9 +29,9 @@ class NTM(nn.Module):
 
 
 class Controller(nn.Module):
-    def __init__(self, hidden_size):
+    def __init__(self, vector_length, hidden_size):
         super(Controller, self).__init__()
-        self.layer = nn.LSTM(hidden_size, hidden_size)
+        self.layer = nn.LSTM(vector_length, hidden_size)
 
     def forward(self, x, state):
         output, state = self.layer(x.view(1, 1, -1), state)
@@ -139,10 +139,10 @@ def get_training_sequence(sequence_length, vector_length):
 
 vector_length = 6
 memory_size = (10, 20)
-hidden_layer_size = 6
+hidden_layer_size = 8
 sequence_length = 2
 
-model = NTM(hidden_layer_size, memory_size)
+model = NTM(vector_length, hidden_layer_size, memory_size)
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 feedback_frequence = 100
@@ -151,12 +151,12 @@ total_loss = []
 model_path = 'models/copy.pt'
 
 
-checkpoint = torch.load(model_path)
-model.load_state_dict(checkpoint)
+# checkpoint = torch.load(model_path)
+# model.load_state_dict(checkpoint)
 
-initial_read_head_weights = torch.ones((1, 10)) / 10
-initial_write_head_weights = torch.ones((1, 10)) / 10
-initial_controller_weights = (torch.ones((1, 1, 6)) / 6, torch.ones((1, 1, 6)) / 6)
+initial_read_head_weights = torch.ones((1, memory_size[0])) / memory_size[0]
+initial_write_head_weights = torch.ones((1, memory_size[0])) / memory_size[0]
+initial_controller_weights = (torch.ones((1, 1, hidden_layer_size)) / hidden_layer_size, torch.ones((1, 1, hidden_layer_size)) / hidden_layer_size)
 for i in range(100000):
     input, target = get_training_sequence(sequence_length, vector_length)
     state = (initial_read_head_weights, initial_write_head_weights, initial_controller_weights)
@@ -174,4 +174,4 @@ for i in range(100000):
         print(f'loss at step {i}', sum(total_loss) / len(total_loss))
         total_loss = []
 
-torch.save(model.state_dict(), model_path)
+# torch.save(model.state_dict(), model_path)

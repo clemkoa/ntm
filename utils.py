@@ -6,8 +6,5 @@ def roll(t, n):
 
 
 def circular_convolution(w, s):
-    w_p = torch.clone(w)
-    for i in range(len(w)):
-        for j in range(len(w[0])):
-            w_p[i, j] = torch.mm(w, torch.t(roll(s, j)))[i]
-    return w_p
+    temp_cat = torch.t(torch.cat([roll(s, i) for i in range(w.shape[1])]))
+    return torch.mm(w, temp_cat)

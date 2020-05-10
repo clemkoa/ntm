@@ -3,6 +3,7 @@ import torch
 
 from ..utils import circular_convolution
 
+
 def test_circular_convolution():
     a = torch.tensor([[0, 0, 1, 0, 0]])
     b = torch.tensor([[1, 2, 3, 4, 5]])

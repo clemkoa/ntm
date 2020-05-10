@@ -1,15 +1,16 @@
+import random
 import torch
+import numpy as np
 from torch import nn
 import torch.optim as optim
 import torch.nn.functional as F
-
 from utils import circular_convolution
 
 
 class NTM(nn.Module):
     def __init__(self, vector_length, hidden_size, memory_size):
         super(NTM, self).__init__()
-        self.controller = Controller(vector_length + memory_size[1], hidden_size)
+        self.controller = Controller(vector_length + 1 + memory_size[1], hidden_size)
         self.memory = Memory(memory_size)
         self.read_head = ReadHead(self.memory, hidden_size)
         self.write_head = WriteHead(self.memory, hidden_size)
@@ -108,7 +109,12 @@ class WriteHead(nn.Module):
 
 class Memory:
     def __init__(self, memory_size):
-        self.memory = torch.ones(memory_size, dtype=torch.float)
+        self._memory_size = memory_size
+        self.initialise()
+
+    def initialise(self):
+        stdev = 1 / np.sqrt(self._memory_size[0] + self._memory_size[1])
+        self.memory = torch.zeros(self._memory_size).uniform_(-stdev, stdev)
 
     def read(self):
         return self.memory
@@ -123,7 +129,9 @@ class Memory:
 
 
 def get_delimiter_vector(vector_length):
-    return - torch.ones(1, 1, vector_length)
+    vector = torch.zeros(1, 1, vector_length + 1)
+    vector[:, :, vector_length] = 1.0
+    return vector
 
 
 def get_training_sequence(sequence_length, vector_length):
@@ -132,14 +140,16 @@ def get_training_sequence(sequence_length, vector_length):
         output.append(torch.bernoulli(torch.Tensor(1, vector_length).uniform_(0, 1)))
     output = torch.cat(output)
     output = torch.unsqueeze(output, 1)
-    input = torch.cat([output, get_delimiter_vector(vector_length)])
+    input = torch.zeros(sequence_length + 1, 1, vector_length + 1)
+    input[:sequence_length, :, :vector_length] = output
+    input[sequence_length, :, vector_length] = 1.0
     return input, output
 
 
-vector_length = 6
-memory_size = (10, 20)
-hidden_layer_size = 8
-sequence_length = 2
+vector_length = 8
+memory_size = (40, 50)
+hidden_layer_size = 50
+epochs = 50_000
 
 model = NTM(vector_length, hidden_layer_size, memory_size)
 optimizer = optim.Adam(model.parameters(), lr=0.005)
@@ -155,23 +165,29 @@ model_path = 'models/copy.pt'
 
 initial_read_head_weights = torch.ones((1, memory_size[0])) / memory_size[0]
 initial_write_head_weights = torch.ones((1, memory_size[0])) / memory_size[0]
-initial_controller_weights = (torch.ones((1, 1, hidden_layer_size)) / hidden_layer_size, torch.ones((1, 1, hidden_layer_size)) / hidden_layer_size)
+initial_controller_weights = (torch.ones((1, 1, hidden_layer_size)).uniform_(-0.01, 0.01), torch.ones((1, 1, hidden_layer_size)).uniform_(-0.01, 0.01))
 initial_read = torch.ones((1, memory_size[1])) / memory_size[1]
-for i in range(100000):
-    input, target = get_training_sequence(sequence_length, vector_length)
-    state = (initial_read, initial_read_head_weights, initial_write_head_weights, initial_controller_weights)
+for i in range(epochs):
     optimizer.zero_grad()
+    sequence_length = random.randint(1, 10)
+    input, target = get_training_sequence(sequence_length, vector_length)
+    model.memory.initialise()
+    state = (initial_read, initial_read_head_weights, initial_write_head_weights, initial_controller_weights)
     for vector in input:
-        output, state = model(vector, state)
-    loss = 0.0
-    for vector in target:
-        output, state = model(get_delimiter_vector(vector_length)[0], state)
-        loss += F.binary_cross_entropy(output, vector)
+        _, state = model(vector, state)
+    y_out = torch.zeros(target.size())
+    for j in range(len(target)):
+        y_out[j], state = model(torch.zeros(1, vector_length + 1), state)
+    loss = F.binary_cross_entropy(y_out, target)
     loss.backward()
-    total_loss.append(loss.item())
     optimizer.step()
+
+    y_out_binarized = y_out.clone().data
+    y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
+    cost = torch.sum(torch.abs(y_out_binarized - target))
+    total_loss.append(cost.item() / sequence_length)
     if i % feedback_frequence == 0:
-        print(f'loss at step {i}', sum(total_loss) / len(total_loss))
+        print(f'cost at step {i}', sum(total_loss) / len(total_loss))
         total_loss = []
 
 # torch.save(model.state_dict(), model_path)

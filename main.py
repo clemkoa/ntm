@@ -22,10 +22,10 @@ class NTM(nn.Module):
         read_head_output, read_head_state = self.read_head(controller_output, previous_read_head_state)
 
         # Write
-        write_head_output, write_head_state = self.write_head(controller_output, previous_read_head_state)
-        fc_input = torch.cat((controller_output, read_head_output), 1)
+        write_head_state = self.write_head(controller_output, previous_read_head_state)
+        fc_input = torch.cat((controller_output, read_head_output), dim=1)
         state = (read_head_state, write_head_state, controller_state)
-        return self.fc(fc_input), state
+        return F.sigmoid(self.fc(fc_input)), state
 
 
 class Controller(nn.Module):
@@ -100,11 +100,10 @@ class WriteHead(nn.Module):
         w_t = circular_convolution(w_g, s)
         w = w_t ** gamma
         w = torch.div(w, torch.sum(w, dim=1).view(-1, 1) + 1e-16)
-        read = torch.matmul(w, memory)
 
         # write to memory (w, memory, e , a)
         self.memory.write(w.detach(), e.detach(), a.detach())
-        return read, w.detach()
+        return w.detach()
 
 
 class Memory:
@@ -166,7 +165,7 @@ for i in range(100000):
     loss = 0.0
     for vector in target:
         output, state = model(get_delimiter_vector(vector_length)[0], state)
-        loss += F.mse_loss(output, vector)
+        loss += F.binary_cross_entropy(output, vector)
     loss.backward()
     total_loss.append(loss.item())
     optimizer.step()

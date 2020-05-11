@@ -21,7 +21,7 @@ class ReadHead(nn.Module):
         k = self.k_layer(x)
         beta = F.softplus(self.beta_layer(x))
         g = F.sigmoid(self.g_layer(x))
-        s = F.softmax(self.s_layer(x))
+        s = F.softmax(self.s_layer(x), dim=1)
         gamma = 1 + F.softplus(self.gamma_layer(x))
         # Focusing by content
         memory = self.memory.read().detach()
@@ -53,7 +53,7 @@ class WriteHead(nn.Module):
         k = self.k_layer(x)
         beta = F.softplus(self.beta_layer(x))
         g = F.sigmoid(self.g_layer(x))
-        s = F.softmax(self.s_layer(x))
+        s = F.softmax(self.s_layer(x), dim=1)
         gamma = 1 + F.softplus(self.gamma_layer(x))
         e = F.sigmoid(self.e_layer(x))
         a = self.a_layer(x)

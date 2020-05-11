@@ -1,7 +1,6 @@
-import pytest
 import torch
 
-from ..utils import circular_convolution
+from ..ntm.utils import circular_convolution
 
 
 def test_circular_convolution():

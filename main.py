@@ -128,12 +128,6 @@ class Memory:
         return self.memory.shape
 
 
-def get_delimiter_vector(vector_length):
-    vector = torch.zeros(1, 1, vector_length + 1)
-    vector[:, :, vector_length] = 1.0
-    return vector
-
-
 def get_training_sequence(sequence_length, vector_length):
     output = []
     for i in range(sequence_length):
@@ -147,8 +141,8 @@ def get_training_sequence(sequence_length, vector_length):
 
 
 vector_length = 8
-memory_size = (40, 50)
-hidden_layer_size = 50
+memory_size = (128, 20)
+hidden_layer_size = 100
 epochs = 50_000
 
 model = NTM(vector_length, hidden_layer_size, memory_size)
@@ -163,15 +157,15 @@ model_path = 'models/copy.pt'
 # checkpoint = torch.load(model_path)
 # model.load_state_dict(checkpoint)
 
-initial_read_head_weights = torch.ones((1, memory_size[0])) / memory_size[0]
-initial_write_head_weights = torch.ones((1, memory_size[0])) / memory_size[0]
-initial_controller_weights = (torch.ones((1, 1, hidden_layer_size)).uniform_(-0.01, 0.01), torch.ones((1, 1, hidden_layer_size)).uniform_(-0.01, 0.01))
-initial_read = torch.ones((1, memory_size[1])) / memory_size[1]
+initial_read_head_weights = torch.zeros((1, memory_size[0])).uniform_(-0.1, 0.1)
+initial_write_head_weights = torch.zeros((1, memory_size[0])).uniform_(-0.1, 0.1)
+initial_read = torch.zeros((1, memory_size[1]))
 for i in range(epochs):
     optimizer.zero_grad()
     sequence_length = random.randint(1, 10)
     input, target = get_training_sequence(sequence_length, vector_length)
     model.memory.initialise()
+    initial_controller_weights = (torch.ones((1, 1, hidden_layer_size)).uniform_(-0.1, 0.1), torch.ones((1, 1, hidden_layer_size)).uniform_(-0.1, 0.1))
     state = (initial_read, initial_read_head_weights, initial_write_head_weights, initial_controller_weights)
     for vector in input:
         _, state = model(vector, state)

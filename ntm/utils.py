@@ -2,7 +2,8 @@ import torch
 
 
 def roll(t, n):
-    return torch.cat((t[:, -n:], t[:, :-n]), dim=1)
+    temp = t.flip(1)
+    return torch.cat((temp[:, -(n+1):], temp[:, :-(n+1)]), dim=1)
 
 
 def circular_convolution(w, s):

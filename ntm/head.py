@@ -8,7 +8,7 @@ class Head(nn.Module):
     def __init__(self, memory, hidden_size):
         super(Head, self).__init__()
         self.memory = memory
-        memory_length, memory_vector_length = memory.size()
+        memory_length, memory_vector_length = memory.get_size()
         # (k : vector, beta: scalar, g: scalar, s: vector, gamma: scalar)
         self.k_layer = nn.Linear(hidden_size, memory_vector_length)
         self.beta_layer = nn.Linear(hidden_size, 1)
@@ -48,7 +48,7 @@ class ReadHead(Head):
 class WriteHead(Head):
     def __init__(self, memory, hidden_size):
         super(WriteHead, self).__init__(memory, hidden_size)
-        memory_length, memory_vector_length = memory.size()
+        memory_length, memory_vector_length = memory.get_size()
         self.e_layer = nn.Linear(hidden_size, memory_vector_length * memory_length)
         self.a_layer = nn.Linear(hidden_size, memory_vector_length)
 

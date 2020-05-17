@@ -58,7 +58,7 @@ def train():
         y_out_binarized = y_out.clone().data
         y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
         cost = torch.sum(torch.abs(y_out_binarized - target))
-        total_loss.append(cost.item() / len(input))
+        total_loss.append(loss.item())
         if i % feedback_frequence == 0:
             print(f'cost at step {i}', sum(total_loss) / len(total_loss))
             total_loss = []

@@ -19,6 +19,9 @@ class Head(nn.Module):
             nn.init.xavier_uniform_(layer.weight, gain=1.4)
             nn.init.normal_(layer.bias, std=0.01)
 
+    def get_initial_state(self):
+        return torch.zeros((1, self.memory.get_size()[0]))
+
     def get_head_weight(self, x, previous_state, memory_read):
         k = self.k_layer(x)
         beta = F.softplus(self.beta_layer(x))

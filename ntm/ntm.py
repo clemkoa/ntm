@@ -14,6 +14,16 @@ class NTM(nn.Module):
         self.read_head = ReadHead(self.memory, hidden_size)
         self.write_head = WriteHead(self.memory, hidden_size)
         self.fc = nn.Linear(hidden_size + memory_size[1], vector_length)
+        nn.init.xavier_uniform_(self.fc.weight, gain=1)
+        nn.init.normal_(self.fc.bias, std=0.01)
+
+    def get_initial_state(self):
+        self.memory.reset()
+        controller_state = self.controller.get_initial_state()
+        read = self.memory.get_initial_state()
+        read_head_state = self.read_head.get_initial_state()
+        write_head_state = self.write_head.get_initial_state()
+        return (read, read_head_state, write_head_state, controller_state)
 
     def forward(self, x, previous_state):
         previous_read, previous_read_head_state, previous_write_head_state, previous_controller_state = previous_state

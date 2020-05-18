@@ -14,6 +14,9 @@ class Memory(nn.Module):
         nn.init.uniform_(self.mem_bias, -stdev, stdev)
         self.reset()
 
+        initial_read = torch.randn(1, self._memory_size[1]) * 0.01
+        self.register_buffer("initial_read", initial_read.data)
+
     def get_size(self):
         return self._memory_size
 
@@ -21,7 +24,7 @@ class Memory(nn.Module):
         self.memory = self.mem_bias.clone()
 
     def get_initial_state(self):
-        return torch.zeros((1, self._memory_size[1]))
+        return self.initial_read.clone()
 
     def read(self):
         return self.memory

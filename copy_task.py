@@ -34,6 +34,8 @@ def train():
     model = NTM(vector_length, hidden_layer_size, memory_size)
     optimizer = optim.Adam(model.parameters(), lr=0.005)
 
+    optimizer = optim.RMSprop(model.parameters(), momentum=0.9, alpha=0.95, lr=1e-4)
+
     feedback_frequence = 100
     total_loss = []
 
@@ -54,10 +56,6 @@ def train():
         loss = F.binary_cross_entropy(y_out, target)
         loss.backward()
         optimizer.step()
-
-        y_out_binarized = y_out.clone().data
-        y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
-        cost = torch.sum(torch.abs(y_out_binarized - target))
         total_loss.append(loss.item())
         if i % feedback_frequence == 0:
             print(f'cost at step {i}', sum(total_loss) / len(total_loss))
@@ -73,7 +71,7 @@ def eval():
 
     model = NTM(vector_length, hidden_layer_size, memory_size)
 
-    model_path = 'models/copy-100-20.pt'
+    model_path = 'models/copy.pt'
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint)
 
@@ -91,10 +89,10 @@ def eval():
         y_out_binarized = y_out.clone().data
         y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
         plt.subplot(211)
-        plt.imshow(target.view(sequence_min_length, vector_length))
+        plt.imshow(torch.t(target.view(sequence_min_length, vector_length)))
         plt.axis('off')
         plt.subplot(212)
-        plt.imshow(y_out_binarized.view(sequence_min_length, vector_length))
+        plt.imshow(torch.t(y_out_binarized.view(sequence_min_length, vector_length)))
         plt.axis('off')
         # plt.savefig(f"output_{i + 1}.png")
         plt.show()

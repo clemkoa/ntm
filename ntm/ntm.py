@@ -14,6 +14,8 @@ class NTM(nn.Module):
         self.read_head = ReadHead(self.memory, hidden_size)
         self.write_head = WriteHead(self.memory, hidden_size)
         self.fc = nn.Linear(hidden_size + memory_size[1], vector_length)
+        nn.init.xavier_uniform_(self.fc.weight, gain=1)
+        nn.init.normal_(self.fc.bias, std=0.01)
 
     def get_initial_state(self):
         self.memory.reset()

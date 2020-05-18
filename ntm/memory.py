@@ -30,7 +30,7 @@ class Memory(nn.Module):
         return self.memory
 
     def write(self, w, e, a):
-        self.memory = self.memory * (1 - torch.matmul(w, e.view(self.memory.shape)))
+        self.memory = self.memory * (1 - torch.t(w) * e)
         self.memory = self.memory + torch.t(w) * a
         return self.memory
 

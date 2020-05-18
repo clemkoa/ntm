@@ -5,9 +5,10 @@ import torch.nn.functional as F
 from ntm.ntm import NTM
 import numpy as np
 import matplotlib.pyplot as plt
-random.seed(2)
-np.random.seed(2)
-torch.manual_seed(2)
+seed = 10
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
 
 
 def get_training_sequence(sequence_min_length, sequence_max_length, vector_length):
@@ -76,9 +77,10 @@ def eval():
     model.load_state_dict(checkpoint)
 
     eval_epochs = 4
-    for i in range(eval_epochs):
-        sequence_min_length = (i + 1) * 4
-        sequence_max_length = (i + 1) * 4
+    lengths = [20, 40, 60, 80, 100]
+    for l in lengths:
+        sequence_min_length = l
+        sequence_max_length = l
         input, target = get_training_sequence(sequence_min_length, sequence_max_length, vector_length)
         state = model.get_initial_state()
         for vector in input:

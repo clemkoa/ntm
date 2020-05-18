@@ -49,7 +49,7 @@ class WriteHead(Head):
     def __init__(self, memory, hidden_size):
         super(WriteHead, self).__init__(memory, hidden_size)
         memory_length, memory_vector_length = memory.get_size()
-        self.e_layer = nn.Linear(hidden_size, memory_vector_length * memory_length)
+        self.e_layer = nn.Linear(hidden_size, memory_vector_length)
         self.a_layer = nn.Linear(hidden_size, memory_vector_length)
         for layer in [self.e_layer, self.a_layer]:
             nn.init.xavier_uniform_(layer.weight, gain=1.4)

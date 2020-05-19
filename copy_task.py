@@ -10,7 +10,9 @@ import argparse
 
 parser = argparse.ArgumentParser(description="Process some integers.")
 parser.add_argument("--train", help="Trains the model", action="store_true")
-parser.add_argument("--eval", help="Evaluates the model. Default path is models/copy.py", action="store_true")
+parser.add_argument("--eval", help="Evaluates the model. Default path is models/copy.pt", action="store_true")
+parser.add_argument("--modelpath", help="Specify the model path to load, for training or evaluation", type=str)
+parser.add_argument("--epochs", help="Specify the number of epochs for training", type=int, default=50_000)
 args = parser.parse_args()
 
 seed = 42
@@ -44,10 +46,7 @@ def plot_copy_results(target, bin_y, y, sequence_min_length, vector_length):
 
 def get_training_sequence(sequence_min_length, sequence_max_length, vector_length):
     sequence_length = random.randint(sequence_min_length, sequence_max_length)
-    output = []
-    for i in range(sequence_length):
-        output.append(torch.bernoulli(torch.Tensor(1, vector_length).uniform_(0, 1)))
-    output = torch.cat(output)
+    output = torch.bernoulli(torch.Tensor(sequence_length, vector_length).uniform_(0, 1))
     output = torch.unsqueeze(output, 1)
     input = torch.zeros(sequence_length + 1, 1, vector_length + 1)
     input[:sequence_length, :, :vector_length] = output
@@ -55,23 +54,21 @@ def get_training_sequence(sequence_min_length, sequence_max_length, vector_lengt
     return input, output
 
 
-def train():
+def train(epochs=50_000):
+    print(f"Training for {epochs} epochs")
     sequence_min_length = 1
     sequence_max_length = 20
     vector_length = 8
     memory_size = (128, 20)
     hidden_layer_size = 100
-    epochs = 50_000
 
     model = NTM(vector_length, hidden_layer_size, memory_size)
-    optimizer = optim.Adam(model.parameters(), lr=0.005)
 
+    # optimizer = optim.Adam(model.parameters(), lr=1e-4)
     optimizer = optim.RMSprop(model.parameters(), momentum=0.9, alpha=0.95, lr=1e-4)
-
     feedback_frequence = 100
     total_loss = []
 
-    model_path = "models/copy.pt"
     os.makedirs("models", exist_ok=True)
     if os.path.isfile(model_path):
         print(f"Loading model from {model_path}")
@@ -98,14 +95,13 @@ def train():
     torch.save(model.state_dict(), model_path)
 
 
-def eval():
+def eval(model_path):
     vector_length = 8
     memory_size = (128, 20)
     hidden_layer_size = 100
 
     model = NTM(vector_length, hidden_layer_size, memory_size)
 
-    model_path = "models/copy.pt"
     print(f"Loading model from {model_path}")
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint)
@@ -128,7 +124,10 @@ def eval():
 
 
 if __name__ == "__main__":
+    model_path = "models/copy.pt"
+    if args.modelpath:
+        model_path = args.modelpath
     if args.train:
-        train()
+        train(args.epochs)
     if args.eval:
-        eval()
+        eval(model_path)

@@ -9,7 +9,8 @@ class Memory(nn.Module):
         self._memory_size = memory_size
 
         # Initialize memory bias
-        intial_state = torch.Tensor(memory_size[0], memory_size[1]).uniform_(-0.01, 0.01)
+        stdev = 1 / (np.sqrt(memory_size[0] + memory_size[1]))
+        intial_state = torch.Tensor(memory_size[0], memory_size[1]).uniform_(-stdev, stdev)
         self.register_buffer('intial_state', intial_state.data)
         self.reset()
 

@@ -1,6 +1,6 @@
-# ntm - Neural Turing Machine in pytorch
+# ntm - Neural Turing Machines in pytorch
 
-A [Neural Turing Machine](https://arxiv.org/abs/1410.5401) implementation in pytorch.
+A [Neural Turing Machines](https://arxiv.org/abs/1410.5401) implementation in pytorch.
 
 The goal was to implement a simple NTM with 1 read head and 1 write head, to reproduce the original paper's results.
 

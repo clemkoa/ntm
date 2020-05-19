@@ -20,8 +20,14 @@ Here is the net output compared to the target for a sequence of 100. Note that t
 
 ## Usage
 
-```
-python copy_task.py
+```bash
+# installation
+pip install -r requirements.txt
+# to train
+python copy_task.py --train
+# to evaluate
+python copy_task.py --eval
+
 ```
 
 ### References

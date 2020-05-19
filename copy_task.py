@@ -1,14 +1,45 @@
 import random
+import os
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
 from ntm.ntm import NTM
 import numpy as np
 import matplotlib.pyplot as plt
-seed = 10
+import argparse
+
+parser = argparse.ArgumentParser(description="Process some integers.")
+parser.add_argument("--train", help="Trains the model", action="store_true")
+parser.add_argument("--eval", help="Evaluates the model. Default path is models/copy.py", action="store_true")
+args = parser.parse_args()
+
+seed = 42
 random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
+
+
+def plot_copy_results(target, bin_y, y, sequence_min_length, vector_length):
+    fig = plt.figure()
+    ax1 = fig.add_subplot(311)
+    ax1.set_ylabel("target", rotation=0, labelpad=20)
+    ax1.imshow(torch.t(target.view(sequence_min_length, vector_length)))
+    ax1.tick_params(axis="both", which="both", length=0)
+    ax2 = fig.add_subplot(312)
+    ax2.set_ylabel("binarized output", rotation=0, labelpad=50)
+    ax2.imshow(torch.t(bin_y.view(sequence_min_length, vector_length)))
+    ax2.tick_params(axis="both", which="both", length=0)
+    ax3 = fig.add_subplot(313)
+    ax3.set_ylabel("output", rotation=0, labelpad=20)
+    ax3.imshow(torch.t(y.clone().data.view(sequence_min_length, vector_length)))
+    ax3.tick_params(axis="both", which="both", length=0)
+    plt.setp(ax1.get_xticklabels(), visible=False)
+    plt.setp(ax1.get_yticklabels(), visible=False)
+    plt.setp(ax2.get_xticklabels(), visible=False)
+    plt.setp(ax2.get_yticklabels(), visible=False)
+    plt.setp(ax3.get_xticklabels(), visible=False)
+    plt.setp(ax3.get_yticklabels(), visible=False)
+    plt.show()
 
 
 def get_training_sequence(sequence_min_length, sequence_max_length, vector_length):
@@ -40,10 +71,12 @@ def train():
     feedback_frequence = 100
     total_loss = []
 
-    # model_path = 'models/copy.pt'
-
-    # checkpoint = torch.load(model_path)
-    # model.load_state_dict(checkpoint)
+    model_path = "models/copy.pt"
+    os.makedirs("models", exist_ok=True)
+    if os.path.isfile(model_path):
+        print(f"Loading model from {model_path}")
+        checkpoint = torch.load(model_path)
+        model.load_state_dict(checkpoint)
 
     for i in range(epochs):
         optimizer.zero_grad()
@@ -59,10 +92,10 @@ def train():
         optimizer.step()
         total_loss.append(loss.item())
         if i % feedback_frequence == 0:
-            print(f'cost at step {i}', sum(total_loss) / len(total_loss))
+            print(f"Loss at step {i}", sum(total_loss) / len(total_loss))
             total_loss = []
 
-    # torch.save(model.state_dict(), model_path)
+    torch.save(model.state_dict(), model_path)
 
 
 def eval():
@@ -72,12 +105,12 @@ def eval():
 
     model = NTM(vector_length, hidden_layer_size, memory_size)
 
-    model_path = 'models/copy.pt'
+    model_path = "models/copy.pt"
+    print(f"Loading model from {model_path}")
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint)
 
-    eval_epochs = 4
-    lengths = [20, 40, 60, 80, 100]
+    lengths = [20, 100]
     for l in lengths:
         sequence_min_length = l
         sequence_max_length = l
@@ -90,15 +123,12 @@ def eval():
             y_out[j], state = model(torch.zeros(1, vector_length + 1), state)
         y_out_binarized = y_out.clone().data
         y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
-        plt.subplot(211)
-        plt.imshow(torch.t(target.view(sequence_min_length, vector_length)))
-        plt.axis('off')
-        plt.subplot(212)
-        plt.imshow(torch.t(y_out_binarized.view(sequence_min_length, vector_length)))
-        plt.axis('off')
-        # plt.savefig(f"output_{i + 1}.png")
-        plt.show()
+
+        plot_copy_results(target, y_out_binarized, y_out, sequence_min_length, vector_length)
+
 
 if __name__ == "__main__":
-    train()
-    # eval()
+    if args.train:
+        train()
+    if args.eval:
+        eval()

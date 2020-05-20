@@ -7,9 +7,9 @@ from ntm.head import ReadHead, WriteHead
 
 
 class NTM(nn.Module):
-    def __init__(self, vector_length, hidden_size, memory_size):
+    def __init__(self, vector_length, hidden_size, memory_size, lstm_controller=True):
         super(NTM, self).__init__()
-        self.controller = Controller(vector_length + 1 + memory_size[1], hidden_size)
+        self.controller = Controller(lstm_controller, vector_length + 1 + memory_size[1], hidden_size)
         self.memory = Memory(memory_size)
         self.read_head = ReadHead(self.memory, hidden_size)
         self.write_head = WriteHead(self.memory, hidden_size)
@@ -19,19 +19,20 @@ class NTM(nn.Module):
 
     def get_initial_state(self):
         self.memory.reset()
+        controller_state = self.controller.get_initial_state()
         read = self.memory.get_initial_state()
         read_head_state = self.read_head.get_initial_state()
         write_head_state = self.write_head.get_initial_state()
-        return (read, read_head_state, write_head_state)
+        return (read, read_head_state, write_head_state, controller_state)
 
     def forward(self, x, previous_state):
-        previous_read, previous_read_head_state, previous_write_head_state = previous_state
+        previous_read, previous_read_head_state, previous_write_head_state, previous_controller_state = previous_state
         controller_input = torch.cat([x, previous_read], dim=1)
-        controller_output = self.controller(controller_input)
+        controller_output, controller_state = self.controller(controller_input, previous_controller_state)
         # Read
         read_head_output, read_head_state = self.read_head(controller_output, previous_read_head_state)
         # Write
         write_head_state = self.write_head(controller_output, previous_read_head_state)
         fc_input = torch.cat((controller_output, read_head_output), dim=1)
-        state = (read_head_output, read_head_state, write_head_state)
+        state = (read_head_output, read_head_state, write_head_state, controller_state)
         return F.sigmoid(self.fc(fc_input)), state

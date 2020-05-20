@@ -7,9 +7,12 @@ from ntm.ntm import NTM
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
+from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
 
 parser = argparse.ArgumentParser(description="Process some integers.")
 parser.add_argument("--train", help="Trains the model", action="store_true")
+parser.add_argument("--ff", help="Feed forward controller", action="store_true")
 parser.add_argument("--eval", help="Evaluates the model. Default path is models/copy.pt", action="store_true")
 parser.add_argument("--modelpath", help="Specify the model path to load, for training or evaluation", type=str)
 parser.add_argument("--epochs", help="Specify the number of epochs for training", type=int, default=50_000)
@@ -55,19 +58,32 @@ def get_training_sequence(sequence_min_length, sequence_max_length, vector_lengt
 
 
 def train(epochs=50_000):
-    print(f"Training for {epochs} epochs")
+    tensorboard_log_folder = f"runs/copy-task-{datetime.now().strftime('%Y-%m-%dT%H%M%S')}"
+    writer = SummaryWriter(tensorboard_log_folder)
+    print(f"Training for {epochs} epochs, logging in {tensorboard_log_folder}")
     sequence_min_length = 1
     sequence_max_length = 20
     vector_length = 8
     memory_size = (128, 20)
     hidden_layer_size = 100
+    lstm_controller = args.ff
 
-    model = NTM(vector_length, hidden_layer_size, memory_size)
+    writer.add_scalar("sequence_min_length", sequence_min_length)
+    writer.add_scalar("sequence_max_length", sequence_max_length)
+    writer.add_scalar("vector_length", vector_length)
+    writer.add_scalar("memory_size0", memory_size[0])
+    writer.add_scalar("memory_size1", memory_size[1])
+    writer.add_scalar("hidden_layer_size", hidden_layer_size)
+    writer.add_scalar("lstm_controller", lstm_controller)
+    writer.add_scalar("seed", seed)
+
+    model = NTM(vector_length, hidden_layer_size, memory_size, lstm_controller)
 
     # optimizer = optim.Adam(model.parameters(), lr=1e-4)
     optimizer = optim.RMSprop(model.parameters(), momentum=0.9, alpha=0.95, lr=1e-4)
     feedback_frequence = 100
     total_loss = []
+    total_cost = []
 
     os.makedirs("models", exist_ok=True)
     if os.path.isfile(model_path):
@@ -75,7 +91,7 @@ def train(epochs=50_000):
         checkpoint = torch.load(model_path)
         model.load_state_dict(checkpoint)
 
-    for i in range(epochs):
+    for epoch in range(epochs):
         optimizer.zero_grad()
         input, target = get_training_sequence(sequence_min_length, sequence_max_length, vector_length)
         state = model.get_initial_state()
@@ -88,8 +104,16 @@ def train(epochs=50_000):
         loss.backward()
         optimizer.step()
         total_loss.append(loss.item())
-        if i % feedback_frequence == 0:
-            print(f"Loss at step {i}", sum(total_loss) / len(total_loss))
+        y_out_binarized = y_out.clone().data
+        y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
+        cost = torch.sum(torch.abs(y_out_binarized - target)) / len(target)
+        total_cost.append(cost.item())
+        if epoch % feedback_frequence == feedback_frequence - 1:
+            running_loss = sum(total_loss) / len(total_loss)
+            running_cost = sum(total_cost) / len(total_cost)
+            print(f"Loss at step {epoch}: {running_loss}")
+            writer.add_scalar('training loss', running_loss, epoch)
+            writer.add_scalar('training cost', running_cost, epoch)
             total_loss = []
 
     torch.save(model.state_dict(), model_path)
@@ -99,8 +123,9 @@ def eval(model_path):
     vector_length = 8
     memory_size = (128, 20)
     hidden_layer_size = 100
+    lstm_controller = args.ff
 
-    model = NTM(vector_length, hidden_layer_size, memory_size)
+    model = NTM(vector_length, hidden_layer_size, memory_size, lstm_controller)
 
     print(f"Loading model from {model_path}")
     checkpoint = torch.load(model_path)
@@ -108,9 +133,8 @@ def eval(model_path):
 
     lengths = [20, 100]
     for l in lengths:
-        sequence_min_length = l
-        sequence_max_length = l
-        input, target = get_training_sequence(sequence_min_length, sequence_max_length, vector_length)
+        sequence_length = l
+        input, target = get_training_sequence(sequence_length, sequence_length, vector_length)
         state = model.get_initial_state()
         for vector in input:
             _, state = model(vector, state)
@@ -120,7 +144,7 @@ def eval(model_path):
         y_out_binarized = y_out.clone().data
         y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
 
-        plot_copy_results(target, y_out_binarized, y_out, sequence_min_length, vector_length)
+        plot_copy_results(target, y_out_binarized, y_out, sequence_length, vector_length)
 
 
 if __name__ == "__main__":

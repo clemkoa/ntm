@@ -7,9 +7,9 @@ from ntm.head import ReadHead, WriteHead
 
 
 class NTM(nn.Module):
-    def __init__(self, vector_length, hidden_size, memory_size):
+    def __init__(self, vector_length, hidden_size, memory_size, lstm_controller=True):
         super(NTM, self).__init__()
-        self.controller = Controller(vector_length + 1 + memory_size[1], hidden_size)
+        self.controller = Controller(lstm_controller, vector_length + 1 + memory_size[1], hidden_size)
         self.memory = Memory(memory_size)
         self.read_head = ReadHead(self.memory, hidden_size)
         self.write_head = WriteHead(self.memory, hidden_size)

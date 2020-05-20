@@ -75,6 +75,7 @@ def train(epochs=50_000):
     writer.add_scalar("memory_size1", memory_size[1])
     writer.add_scalar("hidden_layer_size", hidden_layer_size)
     writer.add_scalar("lstm_controller", lstm_controller)
+    writer.add_scalar("seed", seed)
 
     model = NTM(vector_length, hidden_layer_size, memory_size, lstm_controller)
 

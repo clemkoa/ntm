@@ -4,8 +4,8 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as F
 from ntm.ntm import NTM
+from ntm.utils import plot_copy_results
 import numpy as np
-import matplotlib.pyplot as plt
 import argparse
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
@@ -22,29 +22,6 @@ seed = 42
 random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
-
-
-def plot_copy_results(target, bin_y, y, sequence_min_length, vector_length):
-    fig = plt.figure()
-    ax1 = fig.add_subplot(311)
-    ax1.set_ylabel("target", rotation=0, labelpad=20)
-    ax1.imshow(torch.t(target.view(sequence_min_length, vector_length)))
-    ax1.tick_params(axis="both", which="both", length=0)
-    ax2 = fig.add_subplot(312)
-    ax2.set_ylabel("binarized output", rotation=0, labelpad=50)
-    ax2.imshow(torch.t(bin_y.view(sequence_min_length, vector_length)))
-    ax2.tick_params(axis="both", which="both", length=0)
-    ax3 = fig.add_subplot(313)
-    ax3.set_ylabel("output", rotation=0, labelpad=20)
-    ax3.imshow(torch.t(y.clone().data.view(sequence_min_length, vector_length)))
-    ax3.tick_params(axis="both", which="both", length=0)
-    plt.setp(ax1.get_xticklabels(), visible=False)
-    plt.setp(ax1.get_yticklabels(), visible=False)
-    plt.setp(ax2.get_xticklabels(), visible=False)
-    plt.setp(ax2.get_yticklabels(), visible=False)
-    plt.setp(ax3.get_xticklabels(), visible=False)
-    plt.setp(ax3.get_yticklabels(), visible=False)
-    plt.show()
 
 
 def get_training_sequence(sequence_min_length, sequence_max_length, vector_length):

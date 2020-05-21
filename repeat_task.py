@@ -110,7 +110,7 @@ def eval(model_path):
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint)
 
-    lengths = [20, 100]
+    lengths = [10, 20]
     for l in lengths:
         sequence_length = l
         input, target = get_training_sequence(sequence_length, sequence_length, vector_length)

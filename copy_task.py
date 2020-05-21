@@ -68,7 +68,7 @@ def train(epochs=50_000):
         checkpoint = torch.load(model_path)
         model.load_state_dict(checkpoint)
 
-    for epoch in range(epochs):
+    for epoch in range(epochs + 1):
         optimizer.zero_grad()
         input, target = get_training_sequence(sequence_min_length, sequence_max_length, vector_length)
         state = model.get_initial_state()
@@ -85,7 +85,7 @@ def train(epochs=50_000):
         y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
         cost = torch.sum(torch.abs(y_out_binarized - target)) / len(target)
         total_cost.append(cost.item())
-        if epoch % feedback_frequence == feedback_frequence - 1:
+        if epoch % feedback_frequence == 0:
             running_loss = sum(total_loss) / len(total_loss)
             running_cost = sum(total_cost) / len(total_cost)
             print(f"Loss at step {epoch}: {running_loss}")

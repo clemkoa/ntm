@@ -17,12 +17,6 @@ Here is the net output compared to the target for a sequence of 20.
 Here is the net output compared to the target for a sequence of 100. Note that the network was only trained with sequences of 20 or less.
 ![](images/copy_100.png)
 
-## Repeat copy task
-
-![](images/repeat_10.png)
-
-![](images/repeat_20.png)
-
 ## Usage
 
 ```bash

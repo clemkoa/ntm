@@ -5,7 +5,6 @@ import torch.optim as optim
 import torch.nn.functional as F
 from ntm.ntm import NTM
 from ntm.utils import plot_copy_results
-import numpy as np
 import argparse
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
@@ -26,13 +25,22 @@ seed = 42
 
 def get_training_sequence(sequence_min_length, sequence_max_length, vector_length):
     sequence_length = random.randint(sequence_min_length, sequence_max_length)
+    repeat = random.randint(sequence_min_length, sequence_max_length)
+
     target = torch.bernoulli(torch.Tensor(sequence_length, vector_length).uniform_(0, 1))
     target = torch.unsqueeze(target, 1)
-    input = torch.zeros(sequence_length + 1, 1, vector_length + 1)
+
+    input = torch.zeros(sequence_length + 2, 1, vector_length + 2)
     input[:sequence_length, :, :vector_length] = target
-    repeat = random.randint(sequence_min_length, sequence_max_length)
-    input[sequence_length, :, vector_length] = repeat / sequence_max_length
-    output = target.repeat(repeat, 1, 1)
+    # delimiter vector
+    input[sequence_length, :, vector_length] = 1.0
+    # repeat channel
+    input[sequence_length+1, :, vector_length+1] = repeat / sequence_max_length
+
+    output = torch.zeros(sequence_length * repeat + 1, 1, vector_length + 1)
+    output[:sequence_length * repeat, :, :vector_length] = target.clone().repeat(repeat, 1, 1)
+    # delimiter vector
+    output[-1, :, -1] = 1.0
     return input, output
 
 
@@ -45,7 +53,7 @@ def train(epochs=50_000):
     vector_length = 8
     memory_size = (128, 20)
     hidden_layer_size = 100
-    lstm_controller = args.ff
+    lstm_controller = not args.ff
 
     writer.add_scalar("sequence_min_length", sequence_min_length)
     writer.add_scalar("sequence_max_length", sequence_max_length)
@@ -56,7 +64,7 @@ def train(epochs=50_000):
     writer.add_scalar("lstm_controller", lstm_controller)
     writer.add_scalar("seed", seed)
 
-    model = NTM(vector_length, hidden_layer_size, memory_size, lstm_controller)
+    model = NTM(vector_length + 1, hidden_layer_size, memory_size, lstm_controller)
 
     # optimizer = optim.Adam(model.parameters(), lr=1e-4)
     optimizer = optim.RMSprop(model.parameters(), momentum=0.9, alpha=0.95, lr=1e-4)
@@ -78,7 +86,7 @@ def train(epochs=50_000):
             _, state = model(vector, state)
         y_out = torch.zeros(target.size())
         for j in range(len(target)):
-            y_out[j], state = model(torch.zeros(1, vector_length + 1), state)
+            y_out[j], state = model(torch.zeros(1, vector_length + 2), state)
         loss = F.binary_cross_entropy(y_out, target)
         loss.backward()
         optimizer.step()
@@ -102,7 +110,7 @@ def eval(model_path):
     vector_length = 8
     memory_size = (128, 20)
     hidden_layer_size = 100
-    lstm_controller = args.ff
+    lstm_controller = not args.ff
 
     model = NTM(vector_length, hidden_layer_size, memory_size, lstm_controller)
 

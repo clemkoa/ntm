@@ -43,7 +43,7 @@ def train(epochs=50_000):
     vector_length = 8
     memory_size = (128, 20)
     hidden_layer_size = 100
-    lstm_controller = args.ff
+    lstm_controller = not args.ff
 
     writer.add_scalar("sequence_min_length", sequence_min_length)
     writer.add_scalar("sequence_max_length", sequence_max_length)
@@ -100,7 +100,7 @@ def eval(model_path):
     vector_length = 8
     memory_size = (128, 20)
     hidden_layer_size = 100
-    lstm_controller = args.ff
+    lstm_controller = not args.ff
 
     model = NTM(vector_length, hidden_layer_size, memory_size, lstm_controller)
 

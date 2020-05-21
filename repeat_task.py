@@ -5,7 +5,6 @@ import torch.optim as optim
 import torch.nn.functional as F
 from ntm.ntm import NTM
 from ntm.utils import plot_copy_results
-import numpy as np
 import argparse
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
@@ -13,33 +12,44 @@ from datetime import datetime
 parser = argparse.ArgumentParser(description="Process some integers.")
 parser.add_argument("--train", help="Trains the model", action="store_true")
 parser.add_argument("--ff", help="Feed forward controller", action="store_true")
-parser.add_argument("--eval", help="Evaluates the model. Default path is models/copy.pt", action="store_true")
+parser.add_argument("--eval", help="Evaluates the model. Default path is models/repeat.pt", action="store_true")
 parser.add_argument("--modelpath", help="Specify the model path to load, for training or evaluation", type=str)
 parser.add_argument("--epochs", help="Specify the number of epochs for training", type=int, default=50_000)
 args = parser.parse_args()
 
 seed = 42
-random.seed(seed)
-np.random.seed(seed)
-torch.manual_seed(seed)
+# random.seed(seed)
+# np.random.seed(seed)
+# torch.manual_seed(seed)
 
 
 def get_training_sequence(sequence_min_length, sequence_max_length, vector_length):
     sequence_length = random.randint(sequence_min_length, sequence_max_length)
-    output = torch.bernoulli(torch.Tensor(sequence_length, vector_length).uniform_(0, 1))
-    output = torch.unsqueeze(output, 1)
-    input = torch.zeros(sequence_length + 1, 1, vector_length + 1)
-    input[:sequence_length, :, :vector_length] = output
+    repeat = random.randint(sequence_min_length, sequence_max_length)
+
+    target = torch.bernoulli(torch.Tensor(sequence_length, vector_length).uniform_(0, 1))
+    target = torch.unsqueeze(target, 1)
+
+    input = torch.zeros(sequence_length + 2, 1, vector_length + 2)
+    input[:sequence_length, :, :vector_length] = target
+    # delimiter vector
     input[sequence_length, :, vector_length] = 1.0
+    # repeat channel
+    input[sequence_length+1, :, vector_length+1] = repeat / sequence_max_length
+
+    output = torch.zeros(sequence_length * repeat + 1, 1, vector_length + 1)
+    output[:sequence_length * repeat, :, :vector_length] = target.clone().repeat(repeat, 1, 1)
+    # delimiter vector
+    output[-1, :, -1] = 1.0
     return input, output
 
 
 def train(epochs=50_000):
-    tensorboard_log_folder = f"runs/copy-task-{datetime.now().strftime('%Y-%m-%dT%H%M%S')}"
+    tensorboard_log_folder = f"runs/repeat-copy-task-{datetime.now().strftime('%Y-%m-%dT%H%M%S')}"
     writer = SummaryWriter(tensorboard_log_folder)
     print(f"Training for {epochs} epochs, logging in {tensorboard_log_folder}")
     sequence_min_length = 1
-    sequence_max_length = 20
+    sequence_max_length = 10
     vector_length = 8
     memory_size = (128, 20)
     hidden_layer_size = 100
@@ -54,7 +64,7 @@ def train(epochs=50_000):
     writer.add_scalar("lstm_controller", lstm_controller)
     writer.add_scalar("seed", seed)
 
-    model = NTM(vector_length, hidden_layer_size, memory_size, lstm_controller)
+    model = NTM(vector_length + 1, hidden_layer_size, memory_size, lstm_controller)
 
     # optimizer = optim.Adam(model.parameters(), lr=1e-4)
     optimizer = optim.RMSprop(model.parameters(), momentum=0.9, alpha=0.95, lr=1e-4)
@@ -68,7 +78,7 @@ def train(epochs=50_000):
         checkpoint = torch.load(model_path)
         model.load_state_dict(checkpoint)
 
-    for epoch in range(epochs + 1):
+    for epoch in range(epochs):
         optimizer.zero_grad()
         input, target = get_training_sequence(sequence_min_length, sequence_max_length, vector_length)
         state = model.get_initial_state()
@@ -76,7 +86,7 @@ def train(epochs=50_000):
             _, state = model(vector, state)
         y_out = torch.zeros(target.size())
         for j in range(len(target)):
-            y_out[j], state = model(torch.zeros(1, vector_length + 1), state)
+            y_out[j], state = model(torch.zeros(1, vector_length + 2), state)
         loss = F.binary_cross_entropy(y_out, target)
         loss.backward()
         optimizer.step()
@@ -85,7 +95,7 @@ def train(epochs=50_000):
         y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
         cost = torch.sum(torch.abs(y_out_binarized - target)) / len(target)
         total_cost.append(cost.item())
-        if epoch % feedback_frequence == 0:
+        if epoch % feedback_frequence == feedback_frequence - 1:
             running_loss = sum(total_loss) / len(total_loss)
             running_cost = sum(total_cost) / len(total_cost)
             print(f"Loss at step {epoch}: {running_loss}")
@@ -108,7 +118,7 @@ def eval(model_path):
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint)
 
-    lengths = [20, 100]
+    lengths = [10, 20]
     for l in lengths:
         sequence_length = l
         input, target = get_training_sequence(sequence_length, sequence_length, vector_length)
@@ -125,7 +135,7 @@ def eval(model_path):
 
 
 if __name__ == "__main__":
-    model_path = "models/copy.pt"
+    model_path = "models/repeat.pt"
     if args.modelpath:
         model_path = args.modelpath
     if args.train:

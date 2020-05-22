@@ -19,8 +19,8 @@ class Head(nn.Module):
             nn.init.xavier_uniform_(layer.weight, gain=1.4)
             nn.init.normal_(layer.bias, std=0.01)
 
-    def get_initial_state(self):
-        return torch.zeros((1, self.memory.get_size()[0]))
+    def get_initial_state(self, batch_size):
+        return torch.zeros(batch_size, self.memory.get_size()[0])
 
     def get_head_weight(self, x, previous_state, memory_read):
         k = self.k_layer(x)
@@ -29,7 +29,7 @@ class Head(nn.Module):
         s = F.softmax(self.s_layer(x), dim=1)
         gamma = 1 + F.softplus(self.gamma_layer(x))
         # Focusing by content
-        w_c = F.softmax(beta * F.cosine_similarity(memory_read + 1e-16, k + 1e-16, dim=-1), dim=1)
+        w_c = F.softmax(beta * F.cosine_similarity(memory_read + 1e-16, k.unsqueeze(1) + 1e-16, dim=-1), dim=1)
         # Focusing by location
         w_g = g * w_c + (1 - g) * previous_state
         w_t = _convolve(w_g, s)

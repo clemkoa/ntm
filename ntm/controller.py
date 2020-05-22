@@ -18,8 +18,8 @@ class Controller(nn.Module):
     def forward(self, x, state):
         return self._controller(x, state)
 
-    def get_initial_state(self):
-        return self._controller.get_initial_state()
+    def get_initial_state(self, batch_size):
+        return self._controller.get_initial_state(batch_size)
 
 
 class LSTMController(nn.Module):
@@ -37,13 +37,12 @@ class LSTMController(nn.Module):
                 nn.init.uniform_(p, -stdev, stdev)
 
     def forward(self, x, state):
-        output, state = self.layer(x.view(1, 1, -1), state)
-        output = output.view(1, -1)
-        return output, state
+        output, state = self.layer(x.unsqueeze(0), state)
+        return output.squeeze(0), state
 
-    def get_initial_state(self):
-        lstm_h = self.lstm_h_state.clone()
-        lstm_c = self.lstm_c_state.clone()
+    def get_initial_state(self, batch_size):
+        lstm_h = self.lstm_h_state.clone().repeat(1, batch_size, 1)
+        lstm_c = self.lstm_c_state.clone().repeat(1, batch_size, 1)
         return lstm_h, lstm_c
 
 

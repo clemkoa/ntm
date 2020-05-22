@@ -7,12 +7,11 @@ class Memory(nn.Module):
     def __init__(self, memory_size):
         super(Memory, self).__init__()
         self._memory_size = memory_size
-
+        print(self._memory_size)
         # Initialize memory bias
         stdev = 1 / (np.sqrt(memory_size[0] + memory_size[1]))
         intial_state = torch.Tensor(memory_size[0], memory_size[1]).uniform_(-stdev, stdev)
         self.register_buffer('intial_state', intial_state.data)
-        self.reset()
 
         initial_read = torch.randn(1, self._memory_size[1]) * 0.01
         self.register_buffer("initial_read", initial_read.data)
@@ -20,11 +19,11 @@ class Memory(nn.Module):
     def get_size(self):
         return self._memory_size
 
-    def reset(self):
-        self.memory = self.intial_state.clone()
+    def reset(self, batch_size):
+        self.memory = self.intial_state.clone().repeat(batch_size, 1, 1)
 
-    def get_initial_state(self):
-        return self.initial_read.clone()
+    def get_initial_state(self, batch_size):
+        return self.initial_read.clone().repeat(batch_size, 1)
 
     def read(self):
         return self.memory
@@ -35,4 +34,4 @@ class Memory(nn.Module):
         return self.memory
 
     def size(self):
-        return self.memory.shape
+        return self._memory_size

@@ -1,7 +1,8 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from ntm.utils import circular_convolution, _convolve
+from torch.nn import Parameter
+from ntm.utils import _convolve
 
 
 class Head(nn.Module):
@@ -19,8 +20,11 @@ class Head(nn.Module):
             nn.init.xavier_uniform_(layer.weight, gain=1.4)
             nn.init.normal_(layer.bias, std=0.01)
 
+        self._initial_state = Parameter(torch.randn(1, self.memory.get_size()[0]) * 1e-5)
+
     def get_initial_state(self):
-        return torch.zeros((1, self.memory.get_size()[0]))
+        # Softmax to ensure weights are normalized
+        return F.softmax(self._initial_state.clone(), dim=1)
 
     def get_head_weight(self, x, previous_state, memory_read):
         k = self.k_layer(x)

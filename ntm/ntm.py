@@ -20,7 +20,7 @@ class NTM(nn.Module):
     def get_initial_state(self):
         self.memory.reset()
         controller_state = self.controller.get_initial_state()
-        read = self.memory.get_initial_state()
+        read = self.memory.get_initial_read()
         read_head_state = self.read_head.get_initial_state()
         write_head_state = self.write_head.get_initial_state()
         return (read, read_head_state, write_head_state, controller_state)

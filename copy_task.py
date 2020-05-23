@@ -53,6 +53,7 @@ def train(epochs=50_000):
     writer.add_scalar("hidden_layer_size", hidden_layer_size)
     writer.add_scalar("lstm_controller", lstm_controller)
     writer.add_scalar("seed", seed)
+    writer.add_scalar("batch_size", batch_size)
 
     model = NTM(vector_length, hidden_layer_size, memory_size, lstm_controller)
 
@@ -76,7 +77,7 @@ def train(epochs=50_000):
             _, state = model(vector, state)
         y_out = torch.zeros(target.size())
         for j in range(len(target)):
-            y_out[j], state = model(torch.zeros(1, vector_length + 1), state)
+            y_out[j], state = model(torch.zeros(batch_size, vector_length + 1), state)
         loss = F.binary_cross_entropy(y_out, target)
         loss.backward()
         optimizer.step()

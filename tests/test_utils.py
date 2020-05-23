@@ -1,6 +1,6 @@
 import torch
 
-from ..ntm.utils import circular_convolution
+from ..ntm.utils import circular_convolution, _convolve
 
 
 def test_circular_convolution():
@@ -23,3 +23,15 @@ def test_circular_convolution():
     b = torch.tensor([[1, 0, 1, 0, 0]])
     res = torch.tensor([[5, 7, 4, 6, 8]])
     assert torch.equal(circular_convolution(a, b), res)
+
+
+def test_convolve():
+    w = torch.tensor([0, 0, 1, 0, 0])
+    s = torch.tensor([0, 1, 0])
+    res = torch.tensor([0, 0, 1, 0, 0])
+    assert torch.equal(_convolve(w, s), res)
+
+    w = torch.tensor([0, 0, 1.0, 0, 0])
+    s = torch.tensor([0.5, 0, 0.5])
+    res = torch.tensor([0, 0.5, 0, 0.5, 0])
+    assert torch.equal(_convolve(w, s), res)

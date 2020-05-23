@@ -7,7 +7,7 @@ class Memory(nn.Module):
     def __init__(self, memory_size):
         super(Memory, self).__init__()
         self._memory_size = memory_size
-        print(self._memory_size)
+
         # Initialize memory bias
         stdev = 1 / (np.sqrt(memory_size[0] + memory_size[1]))
         intial_state = torch.Tensor(memory_size[0], memory_size[1]).uniform_(-stdev, stdev)
@@ -29,8 +29,8 @@ class Memory(nn.Module):
         return self.memory
 
     def write(self, w, e, a):
-        self.memory = self.memory * (1 - torch.t(w) * e)
-        self.memory = self.memory + torch.t(w) * a
+        self.memory = self.memory * (1 - torch.matmul(torch.t(w), e))
+        self.memory = self.memory + torch.matmul(torch.t(w), a)
         return self.memory
 
     def size(self):

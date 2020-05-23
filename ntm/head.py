@@ -32,17 +32,23 @@ class Head(nn.Module):
         w_c = F.softmax(beta * F.cosine_similarity(memory_read + 1e-16, k.unsqueeze(1) + 1e-16, dim=-1), dim=1)
         # Focusing by location
         w_g = g * w_c + (1 - g) * previous_state
-        w_t = _convolve(w_g, s)
+        w_t = self.shift(w_g, s)
         w = w_t ** gamma
         w = torch.div(w, torch.sum(w, dim=1).view(-1, 1) + 1e-16)
         return w
+
+    def shift(self, w_g, s):
+        result = torch.zeros(w_g.size())
+        for b in range(len(w_g)):
+            result[b] = _convolve(w_g[b], s[b])
+        return result
 
 
 class ReadHead(Head):
     def forward(self, x, previous_state):
         memory_read = self.memory.read()
         w = self.get_head_weight(x, previous_state, memory_read)
-        return torch.matmul(w, memory_read), w
+        return torch.matmul(w.unsqueeze(1), memory_read).squeeze(1), w
 
 
 class WriteHead(Head):

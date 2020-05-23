@@ -17,12 +17,11 @@ class NTM(nn.Module):
         nn.init.xavier_uniform_(self.fc.weight, gain=1)
         nn.init.normal_(self.fc.bias, std=0.01)
 
-    def get_initial_state(self, batch_size):
+    def get_initial_state(self, batch_size=1):
         self.memory.reset(batch_size)
         controller_state = self.controller.get_initial_state(batch_size)
         read = self.memory.get_initial_state(batch_size)
         read_head_state = self.read_head.get_initial_state(batch_size)
-        print("read_head_state.shape", read_head_state.shape)
         write_head_state = self.write_head.get_initial_state(batch_size)
         return (read, read_head_state, write_head_state, controller_state)
 

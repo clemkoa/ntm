@@ -23,21 +23,20 @@ seed = 42
 # torch.manual_seed(seed)
 
 
-def get_training_sequence(sequence_min_length, sequence_max_length, vector_length):
+def get_training_sequence(sequence_min_length, sequence_max_length, vector_length, batch_size=1):
     sequence_length = random.randint(sequence_min_length, sequence_max_length)
     repeat = random.randint(sequence_min_length, sequence_max_length)
 
-    target = torch.bernoulli(torch.Tensor(sequence_length, vector_length).uniform_(0, 1))
-    target = torch.unsqueeze(target, 1)
+    target = torch.bernoulli(torch.Tensor(sequence_length, batch_size, vector_length).uniform_(0, 1))
 
-    input = torch.zeros(sequence_length + 2, 1, vector_length + 2)
+    input = torch.zeros(sequence_length + 2, batch_size, vector_length + 2)
     input[:sequence_length, :, :vector_length] = target
     # delimiter vector
     input[sequence_length, :, vector_length] = 1.0
     # repeat channel
-    input[sequence_length+1, :, vector_length+1] = repeat / sequence_max_length
+    input[sequence_length + 1, :, vector_length + 1] = repeat / sequence_max_length
 
-    output = torch.zeros(sequence_length * repeat + 1, 1, vector_length + 1)
+    output = torch.zeros(sequence_length * repeat + 1, batch_size, vector_length + 1)
     output[:sequence_length * repeat, :, :vector_length] = target.clone().repeat(repeat, 1, 1)
     # delimiter vector
     output[-1, :, -1] = 1.0
@@ -53,6 +52,7 @@ def train(epochs=50_000):
     vector_length = 8
     memory_size = (128, 20)
     hidden_layer_size = 100
+    batch_size = 2
     lstm_controller = not args.ff
 
     writer.add_scalar("sequence_min_length", sequence_min_length)
@@ -63,6 +63,7 @@ def train(epochs=50_000):
     writer.add_scalar("hidden_layer_size", hidden_layer_size)
     writer.add_scalar("lstm_controller", lstm_controller)
     writer.add_scalar("seed", seed)
+    writer.add_scalar("batch_size", batch_size)
 
     model = NTM(vector_length + 1, hidden_layer_size, memory_size, lstm_controller)
 
@@ -78,15 +79,15 @@ def train(epochs=50_000):
         checkpoint = torch.load(model_path)
         model.load_state_dict(checkpoint)
 
-    for epoch in range(epochs):
+    for epoch in range(epochs + 1):
         optimizer.zero_grad()
-        input, target = get_training_sequence(sequence_min_length, sequence_max_length, vector_length)
-        state = model.get_initial_state()
+        input, target = get_training_sequence(sequence_min_length, sequence_max_length, vector_length, batch_size)
+        state = model.get_initial_state(batch_size)
         for vector in input:
             _, state = model(vector, state)
         y_out = torch.zeros(target.size())
         for j in range(len(target)):
-            y_out[j], state = model(torch.zeros(1, vector_length + 2), state)
+            y_out[j], state = model(torch.zeros(batch_size, vector_length + 2), state)
         loss = F.binary_cross_entropy(y_out, target)
         loss.backward()
         optimizer.step()
@@ -95,7 +96,7 @@ def train(epochs=50_000):
         y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
         cost = torch.sum(torch.abs(y_out_binarized - target)) / len(target)
         total_cost.append(cost.item())
-        if epoch % feedback_frequence == feedback_frequence - 1:
+        if epoch % feedback_frequence == 0:
             running_loss = sum(total_loss) / len(total_loss)
             running_cost = sum(total_cost) / len(total_cost)
             print(f"Loss at step {epoch}: {running_loss}")

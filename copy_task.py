@@ -42,7 +42,7 @@ def train(epochs=50_000):
     vector_length = 8
     memory_size = (128, 20)
     hidden_layer_size = 100
-    batch_size = 2
+    batch_size = 4
     lstm_controller = not args.ff
 
     writer.add_scalar("sequence_min_length", sequence_min_length)
@@ -63,11 +63,11 @@ def train(epochs=50_000):
     total_loss = []
     total_cost = []
 
-    # os.makedirs("models", exist_ok=True)
-    # if os.path.isfile(model_path):
-    #     print(f"Loading model from {model_path}")
-    #     checkpoint = torch.load(model_path)
-    #     model.load_state_dict(checkpoint)
+    os.makedirs("models", exist_ok=True)
+    if os.path.isfile(model_path):
+        print(f"Loading model from {model_path}")
+        checkpoint = torch.load(model_path)
+        model.load_state_dict(checkpoint)
 
     for epoch in range(epochs + 1):
         optimizer.zero_grad()

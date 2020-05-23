@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-import numpy as np
+from torch.nn import Parameter
 
 
 class Memory(nn.Module):
@@ -9,20 +9,19 @@ class Memory(nn.Module):
         self._memory_size = memory_size
 
         # Initialize memory bias
-        stdev = 1 / (np.sqrt(memory_size[0] + memory_size[1]))
-        intial_state = torch.Tensor(memory_size[0], memory_size[1]).uniform_(-stdev, stdev)
-        self.register_buffer('intial_state', intial_state.data)
+        initial_state = torch.ones(memory_size) * 1e-6
+        self.register_buffer('initial_state', initial_state.data)
 
-        initial_read = torch.randn(1, self._memory_size[1]) * 0.01
-        self.register_buffer("initial_read", initial_read.data)
+        # Initial read vector is a learnt parameter
+        self.initial_read = Parameter(torch.randn(1, self._memory_size[1]) * 0.01)
 
     def get_size(self):
         return self._memory_size
 
     def reset(self, batch_size):
-        self.memory = self.intial_state.clone().repeat(batch_size, 1, 1)
+        self.memory = self.initial_state.clone().repeat(batch_size, 1, 1)
 
-    def get_initial_state(self, batch_size):
+    def get_initial_read(self, batch_size):
         return self.initial_read.clone().repeat(batch_size, 1)
 
     def read(self):

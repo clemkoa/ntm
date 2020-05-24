@@ -22,9 +22,9 @@ class Head(nn.Module):
 
         self._initial_state = Parameter(torch.randn(1, self.memory.get_size()[0]) * 1e-5)
 
-    def get_initial_state(self):
+    def get_initial_state(self, batch_size):
         # Softmax to ensure weights are normalized
-        return F.softmax(self._initial_state.clone(), dim=1)
+        return F.softmax(self._initial_state.clone(), dim=1).repeat(batch_size, 1)
 
     def get_head_weight(self, x, previous_state, memory_read):
         k = self.k_layer(x)
@@ -33,20 +33,26 @@ class Head(nn.Module):
         s = F.softmax(self.s_layer(x), dim=1)
         gamma = 1 + F.softplus(self.gamma_layer(x))
         # Focusing by content
-        w_c = F.softmax(beta * F.cosine_similarity(memory_read + 1e-16, k + 1e-16, dim=-1), dim=1)
+        w_c = F.softmax(beta * F.cosine_similarity(memory_read + 1e-16, k.unsqueeze(1) + 1e-16, dim=-1), dim=1)
         # Focusing by location
         w_g = g * w_c + (1 - g) * previous_state
-        w_t = _convolve(w_g, s)
+        w_t = self.shift(w_g, s)
         w = w_t ** gamma
-        w = torch.div(w, torch.sum(w, dim=1).view(-1, 1) + 1e-16)
+        w = torch.div(w, torch.sum(w, dim=1).unsqueeze(1) + 1e-16)
         return w
+
+    def shift(self, w_g, s):
+        result = w_g.clone()
+        for b in range(len(w_g)):
+            result[b] = _convolve(w_g[b], s[b])
+        return result
 
 
 class ReadHead(Head):
     def forward(self, x, previous_state):
         memory_read = self.memory.read()
         w = self.get_head_weight(x, previous_state, memory_read)
-        return torch.matmul(w, memory_read), w
+        return torch.matmul(w.unsqueeze(1), memory_read).squeeze(1), w
 
 
 class WriteHead(Head):

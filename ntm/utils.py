@@ -15,9 +15,9 @@ def circular_convolution(w, s):
 
 def _convolve(w, s):
     """Circular convolution implementation."""
-    assert s.size(1) == 3
-    t = torch.cat([w[:, -1:], w, w[:, :1]], dim=1)
-    c = F.conv1d(t.view(1, 1, -1), s.view(1, 1, -1)).view(1, -1)
+    assert s.size(0) == 3
+    t = torch.cat([w[-1:], w, w[:1]], dim=0)
+    c = F.conv1d(t.view(1, 1, -1), s.view(1, 1, -1)).view(-1)
     return c
 
 

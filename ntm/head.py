@@ -38,11 +38,11 @@ class Head(nn.Module):
         w_g = g * w_c + (1 - g) * previous_state
         w_t = self.shift(w_g, s)
         w = w_t ** gamma
-        w = torch.div(w, torch.sum(w, dim=1).view(-1, 1) + 1e-16)
+        w = torch.div(w, torch.sum(w, dim=1).unsqueeze(1) + 1e-16)
         return w
 
     def shift(self, w_g, s):
-        result = torch.zeros(w_g.size())
+        result = w_g.clone()
         for b in range(len(w_g)):
             result[b] = _convolve(w_g[b], s[b])
         return result

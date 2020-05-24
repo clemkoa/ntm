@@ -28,8 +28,8 @@ class Memory(nn.Module):
         return self.memory
 
     def write(self, w, e, a):
-        self.memory = self.memory * (1 - torch.matmul(torch.t(w), e))
-        self.memory = self.memory + torch.matmul(torch.t(w), a)
+        self.memory = self.memory * (1 - torch.matmul(w.unsqueeze(-1), e.unsqueeze(1)))
+        self.memory = self.memory + torch.matmul(w.unsqueeze(-1), a.unsqueeze(1))
         return self.memory
 
     def size(self):

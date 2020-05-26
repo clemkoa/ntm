@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from ntm.ntm import NTM
 from ntm.utils import plot_copy_results
 import argparse
+import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 
@@ -18,14 +19,14 @@ parser.add_argument("--epochs", help="Specify the number of epochs for training"
 args = parser.parse_args()
 
 seed = 42
-# random.seed(seed)
-# np.random.seed(seed)
-# torch.manual_seed(seed)
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
 
 
-def get_training_sequence(sequence_min_length, sequence_max_length, vector_length, batch_size=1):
+def get_training_sequence(sequence_min_length, sequence_max_length, repeat_min, repeat_max, vector_length, batch_size=1):
     sequence_length = random.randint(sequence_min_length, sequence_max_length)
-    repeat = random.randint(sequence_min_length, sequence_max_length)
+    repeat = random.randint(repeat_min, repeat_max)
 
     target = torch.bernoulli(torch.Tensor(sequence_length, batch_size, vector_length).uniform_(0, 1))
 
@@ -49,10 +50,12 @@ def train(epochs=50_000):
     print(f"Training for {epochs} epochs, logging in {tensorboard_log_folder}")
     sequence_min_length = 1
     sequence_max_length = 10
+    repeat_min = 1
+    repeat_max = 10
     vector_length = 8
     memory_size = (128, 20)
     hidden_layer_size = 100
-    batch_size = 2
+    batch_size = 4
     lstm_controller = not args.ff
 
     writer.add_scalar("sequence_min_length", sequence_min_length)
@@ -67,9 +70,8 @@ def train(epochs=50_000):
 
     model = NTM(vector_length + 1, hidden_layer_size, memory_size, lstm_controller)
 
-    # optimizer = optim.Adam(model.parameters(), lr=1e-4)
     optimizer = optim.RMSprop(model.parameters(), momentum=0.9, alpha=0.95, lr=1e-4)
-    feedback_frequence = 100
+    feedback_frequency = 100
     total_loss = []
     total_cost = []
 
@@ -81,7 +83,7 @@ def train(epochs=50_000):
 
     for epoch in range(epochs + 1):
         optimizer.zero_grad()
-        input, target = get_training_sequence(sequence_min_length, sequence_max_length, vector_length, batch_size)
+        input, target = get_training_sequence(sequence_min_length, sequence_max_length, repeat_min, repeat_max, vector_length, batch_size)
         state = model.get_initial_state(batch_size)
         for vector in input:
             _, state = model(vector, state)
@@ -96,13 +98,14 @@ def train(epochs=50_000):
         y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
         cost = torch.sum(torch.abs(y_out_binarized - target)) / len(target)
         total_cost.append(cost.item())
-        if epoch % feedback_frequence == 0:
+        if epoch % feedback_frequency == 0:
             running_loss = sum(total_loss) / len(total_loss)
             running_cost = sum(total_cost) / len(total_cost)
             print(f"Loss at step {epoch}: {running_loss}")
             writer.add_scalar('training loss', running_loss, epoch)
             writer.add_scalar('training cost', running_cost, epoch)
             total_loss = []
+            total_cost = []
 
     torch.save(model.state_dict(), model_path)
 
@@ -113,26 +116,33 @@ def eval(model_path):
     hidden_layer_size = 100
     lstm_controller = not args.ff
 
-    model = NTM(vector_length, hidden_layer_size, memory_size, lstm_controller)
+    model = NTM(vector_length + 1, hidden_layer_size, memory_size, lstm_controller)
 
     print(f"Loading model from {model_path}")
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint)
 
-    lengths = [10, 20]
-    for l in lengths:
-        sequence_length = l
-        input, target = get_training_sequence(sequence_length, sequence_length, vector_length)
-        state = model.get_initial_state()
-        for vector in input:
-            _, state = model(vector, state)
-        y_out = torch.zeros(target.size())
-        for j in range(len(target)):
-            y_out[j], state = model(torch.zeros(1, vector_length + 1), state)
-        y_out_binarized = y_out.clone().data
-        y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
+    input, target = get_training_sequence(10, 10, 10, 10, vector_length)
+    y_out = infer_sequence(model, input, target, vector_length)
+    plot_copy_results(target, y_out, vector_length + 1)
 
-        plot_copy_results(target, y_out_binarized, y_out, sequence_length, vector_length)
+    input, target = get_training_sequence(10, 10, 20, 20, vector_length)
+    y_out = infer_sequence(model, input, target, vector_length)
+    plot_copy_results(target, y_out, vector_length + 1)
+
+    input, target = get_training_sequence(20, 20, 10, 10, vector_length)
+    y_out = infer_sequence(model, input, target, vector_length)
+    plot_copy_results(target, y_out, vector_length + 1)
+
+
+def infer_sequence(model, input, target, vector_length):
+    state = model.get_initial_state()
+    for vector in input:
+        _, state = model(vector, state)
+    y_out = torch.zeros(target.size())
+    for j in range(len(target)):
+        y_out[j], state = model(torch.zeros(1, vector_length + 2), state)
+    return y_out
 
 
 if __name__ == "__main__":

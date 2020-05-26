@@ -21,25 +21,19 @@ def _convolve(w, s):
     return c
 
 
-def plot_copy_results(target, bin_y, y, sequence_min_length, vector_length):
+def plot_copy_results(target, y, vector_length):
     plt.set_cmap('jet')
     fig = plt.figure()
-    ax1 = fig.add_subplot(311)
+    ax1 = fig.add_subplot(211)
     ax1.set_ylabel("target", rotation=0, labelpad=20)
     ax1.imshow(torch.t(target.view(-1, vector_length)))
     ax1.tick_params(axis="both", which="both", length=0)
-    ax2 = fig.add_subplot(312)
-    ax2.set_ylabel("binarized output", rotation=0, labelpad=50)
-    ax2.imshow(torch.t(bin_y.view(-1, vector_length)))
+    ax2 = fig.add_subplot(212)
+    ax2.set_ylabel("output", rotation=0, labelpad=20)
+    ax2.imshow(torch.t(y.clone().data.view(-1, vector_length)))
     ax2.tick_params(axis="both", which="both", length=0)
-    ax3 = fig.add_subplot(313)
-    ax3.set_ylabel("output", rotation=0, labelpad=20)
-    ax3.imshow(torch.t(y.clone().data.view(-1, vector_length)))
-    ax3.tick_params(axis="both", which="both", length=0)
     plt.setp(ax1.get_xticklabels(), visible=False)
     plt.setp(ax1.get_yticklabels(), visible=False)
     plt.setp(ax2.get_xticklabels(), visible=False)
     plt.setp(ax2.get_yticklabels(), visible=False)
-    plt.setp(ax3.get_xticklabels(), visible=False)
-    plt.setp(ax3.get_yticklabels(), visible=False)
     plt.show()

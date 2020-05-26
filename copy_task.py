@@ -18,7 +18,7 @@ parser.add_argument("--modelpath", help="Specify the model path to load, for tra
 parser.add_argument("--epochs", help="Specify the number of epochs for training", type=int, default=50_000)
 args = parser.parse_args()
 
-seed = 42
+seed = 1
 random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
@@ -57,16 +57,15 @@ def train(epochs=50_000):
 
     model = NTM(vector_length, hidden_layer_size, memory_size, lstm_controller)
 
-    # optimizer = optim.Adam(model.parameters(), lr=1e-4)
     optimizer = optim.RMSprop(model.parameters(), momentum=0.9, alpha=0.95, lr=1e-4)
-    feedback_frequence = 100
+    feedback_frequency = 100
     total_loss = []
     total_cost = []
 
     os.makedirs("models", exist_ok=True)
     if os.path.isfile(model_path):
         print(f"Loading model from {model_path}")
-        checkpoint = torch.load(model_path)
+        checkpoint = torch.load(model_path, map_location=torch.device('cpu'))
         model.load_state_dict(checkpoint)
 
     for epoch in range(epochs + 1):
@@ -86,13 +85,14 @@ def train(epochs=50_000):
         y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
         cost = torch.sum(torch.abs(y_out_binarized - target)) / len(target)
         total_cost.append(cost.item())
-        if epoch % feedback_frequence == 0:
+        if epoch % feedback_frequency == 0:
             running_loss = sum(total_loss) / len(total_loss)
             running_cost = sum(total_cost) / len(total_cost)
             print(f"Loss at step {epoch}: {running_loss}")
             writer.add_scalar('training loss', running_loss, epoch)
             writer.add_scalar('training cost', running_cost, epoch)
             total_loss = []
+            total_cost = []
 
     torch.save(model.state_dict(), model_path)
 
@@ -106,7 +106,7 @@ def eval(model_path):
     model = NTM(vector_length, hidden_layer_size, memory_size, lstm_controller)
 
     print(f"Loading model from {model_path}")
-    checkpoint = torch.load(model_path)
+    checkpoint = torch.load(model_path, map_location=torch.device('cpu'))
     model.load_state_dict(checkpoint)
 
     lengths = [20, 100]
@@ -122,7 +122,7 @@ def eval(model_path):
         y_out_binarized = y_out.clone().data
         y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
 
-        plot_copy_results(target, y_out_binarized, y_out, sequence_length, vector_length)
+        plot_copy_results(target, y_out, vector_length)
 
 
 if __name__ == "__main__":

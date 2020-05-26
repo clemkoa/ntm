@@ -17,6 +17,9 @@ Here is the net output compared to the target for a sequence of 20.
 Here is the net output compared to the target for a sequence of 100. Note that the network was only trained with sequences of 20 or less.
 ![](images/copy_100.png)
 
+Here is an example (seed=1) of loss during training, with a batch size of 8.
+![](images/loss_copy_batch8_seed1.png)
+
 ## Repeat copy task
 
 As said in the paper, "the repeat copy task extends copy by requiring the network to output the copied sequence a specified number of times and then emit an end-of-sequence marker. [...]
@@ -27,11 +30,13 @@ The model is trained on sequences of 1 to 10 8-bit random vectors, with a repeat
 Here is the model output for a sequence of 10 and a repeat of 10.
 ![](images/repeat_10_10.png)
 
-Here it is for a sequence of 10 and a repeat of 20.
+Here it is for a sequence of 10 and a repeat of 20. Note that the network was trained with a repeat of 10 max.
 ![](images/repeat_10_20.png)
 
-Here it is for a sequence of 20 and a repeat of 10. Maybe it needs a bit more training here!
+Here it is for a sequence of 20 and a repeat of 10. Maybe it needs a bit more training here! Note that the network was trained on sequences of 10 or less.
 ![](images/repeat_20_10.png)
+
+Training on the repeat copy task takes substantially longer than the copy task. It usually takes at least 100k iterations to start seeing good results.
 
 ## Usage
 
@@ -47,5 +52,6 @@ python copy_task.py --eval
 
 ### References
 
+1. Graves, Alex, Greg Wayne, and Ivo Danihelka. "Neural turing machines." arXiv preprint arXiv:1410.5401 (2014).
 1. https://github.com/loudinthecloud/pytorch-ntm/
 2. https://github.com/MarkPKCollier/NeuralTuringMachine

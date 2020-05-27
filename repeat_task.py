@@ -122,6 +122,8 @@ def eval(model_path):
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint)
 
+    model.eval()
+
     input, target = get_training_sequence(10, 10, 10, 10, vector_length)
     y_out = infer_sequence(model, input, target, vector_length)
     plot_copy_results(target, y_out, vector_length + 1)

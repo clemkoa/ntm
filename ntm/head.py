@@ -24,7 +24,7 @@ class Head(nn.Module):
 
     def get_initial_state(self, batch_size):
         # Softmax to ensure weights are normalized
-        return F.softmax(self._initial_state.clone(), dim=1).repeat(batch_size, 1)
+        return F.softmax(self._initial_state, dim=1).repeat(batch_size, 1)
 
     def get_head_weight(self, x, previous_state, memory_read):
         k = self.k_layer(x)

@@ -32,7 +32,7 @@ class NTM(nn.Module):
         # Read
         read_head_output, read_head_state = self.read_head(controller_output, previous_read_head_state)
         # Write
-        write_head_state = self.write_head(controller_output, previous_read_head_state)
+        write_head_state = self.write_head(controller_output, previous_write_head_state)
         fc_input = torch.cat((controller_output, read_head_output), dim=1)
         state = (read_head_output, read_head_state, write_head_state, controller_state)
         return F.sigmoid(self.fc(fc_input)), state

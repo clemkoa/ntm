@@ -12,7 +12,7 @@ class Memory(nn.Module):
         initial_state = torch.ones(memory_size) * 1e-6
         self.register_buffer('initial_state', initial_state.data)
 
-        # Initial read vector is a learnt parameter
+        # Initial read vector is a learnt parameter |         
         self.initial_read = Parameter(torch.randn(1, self._memory_size[1]) * 0.01)
 
     def get_size(self):

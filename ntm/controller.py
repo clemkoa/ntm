@@ -37,10 +37,16 @@ class LSTMController(nn.Module):
                 nn.init.uniform_(p, -stdev, stdev)
 
     def forward(self, x, state):
+        # LSTM configured to accept : sequence_length * batch_size * input || 1 * 1 * input_representation_size
         output, state = self.layer(x.unsqueeze(0), state)
+        # Final outputs : time_step * hidden_representation || i.e output at each unrolling, with batch size one. Thus, the squeezing
+        # Assumption below : Squeeze the sequence-length dimension, if the first-dimension (sequence-length) is 1.
         return output.squeeze(0), state
 
     def get_initial_state(self, batch_size):
+        # For multiple Batches, clone the same state
+        # Currently, Batch_Size is 1. WHY ? .. Gotta Come back in a while
+        # as we want minimal training .. Right ? 
         lstm_h = self.lstm_h_state.clone().repeat(1, batch_size, 1)
         lstm_c = self.lstm_c_state.clone().repeat(1, batch_size, 1)
         return lstm_h, lstm_c

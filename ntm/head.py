@@ -27,6 +27,10 @@ class Head(nn.Module):
         return F.softmax(self._initial_state, dim=1).repeat(batch_size, 1)
 
     def get_head_weight(self, x, previous_state, memory_read):
+        '''
+        Outputs Weight necessary for Read and Write Head
+        '''
+        breakpoint()
         k = self.k_layer(x)
         beta = F.softplus(self.beta_layer(x))
         g = F.sigmoid(self.g_layer(x))
@@ -50,8 +54,11 @@ class Head(nn.Module):
 
 class ReadHead(Head):
     def forward(self, x, previous_state):
+        # NOTE : memory shape : batch_size * (128 * 20)
         memory_read = self.memory.read()
+        # Weight across : 120 rows (1 * 120)
         w = self.get_head_weight(x, previous_state, memory_read)
+        # Add dimension to apply same weight across different Batch of inputs
         return torch.matmul(w.unsqueeze(1), memory_read).squeeze(1), w
 
 
